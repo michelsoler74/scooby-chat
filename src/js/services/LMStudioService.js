@@ -6,7 +6,7 @@ import config from "../config.js";
 class GeminiService {
   constructor() {
     this.baseUrl =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent";
     this.apiKey = config.GEMINI_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -57,6 +57,12 @@ Instrucciones para responder:
           },
         ],
       };
+
+      console.log("URL de la API:", this.baseUrl);
+      console.log(
+        "Datos de la solicitud:",
+        JSON.stringify(requestData, null, 2)
+      );
 
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
@@ -123,6 +129,11 @@ Instrucciones para responder:
       };
 
       console.log("Enviando solicitud a Gemini...");
+      console.log(
+        "Datos de la solicitud:",
+        JSON.stringify(requestData, null, 2)
+      );
+
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
         headers: {
