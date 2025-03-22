@@ -6,7 +6,7 @@ import config from "../config.js";
 class GeminiService {
   constructor() {
     this.baseUrl =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent";
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
     this.apiKey = config.GEMINI_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -28,6 +28,7 @@ Instrucciones para responder:
     // Log inicial para verificar la configuración
     console.log("GeminiService inicializado");
     console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
+    console.log("URL de la API:", this.baseUrl);
   }
 
   /**
@@ -36,6 +37,7 @@ Instrucciones para responder:
   async checkConnection() {
     try {
       console.log("Iniciando verificación de conexión con Gemini...");
+      console.log("API Key (últimos 4 caracteres):", this.apiKey.slice(-4));
 
       if (
         !this.apiKey ||
@@ -58,7 +60,12 @@ Instrucciones para responder:
         ],
       };
 
-      console.log("URL de la API:", this.baseUrl);
+      console.log(
+        "URL completa:",
+        `${this.baseUrl}?key=${this.apiKey.slice(0, 4)}...${this.apiKey.slice(
+          -4
+        )}`
+      );
       console.log(
         "Datos de la solicitud:",
         JSON.stringify(requestData, null, 2)
@@ -72,19 +79,21 @@ Instrucciones para responder:
         body: JSON.stringify(requestData),
       });
 
+      const responseText = await response.text();
+      console.log("Respuesta completa del servidor:", responseText);
+
       if (!response.ok) {
-        const errorText = await response.text();
         console.error("Error en la respuesta del servidor:", {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
+          response: responseText,
         });
         throw new Error(
-          `Error del servidor (${response.status}): ${errorText}`
+          `Error del servidor (${response.status}): ${responseText}`
         );
       }
 
-      const data = await response.json();
+      const data = JSON.parse(responseText);
       console.log("Respuesta de prueba recibida:", data);
 
       this.isConnected = true;
@@ -130,6 +139,12 @@ Instrucciones para responder:
 
       console.log("Enviando solicitud a Gemini...");
       console.log(
+        "URL completa:",
+        `${this.baseUrl}?key=${this.apiKey.slice(0, 4)}...${this.apiKey.slice(
+          -4
+        )}`
+      );
+      console.log(
         "Datos de la solicitud:",
         JSON.stringify(requestData, null, 2)
       );
@@ -142,12 +157,14 @@ Instrucciones para responder:
         body: JSON.stringify(requestData),
       });
 
+      const responseText = await response.text();
+      console.log("Respuesta completa del servidor:", responseText);
+
       if (!response.ok) {
-        const errorText = await response.text();
         console.error("Error en la respuesta del servidor:", {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
+          response: responseText,
         });
 
         if (response.status === 400) {
@@ -169,11 +186,11 @@ Instrucciones para responder:
         }
 
         throw new Error(
-          `Error del servidor (${response.status}): ${errorText}`
+          `Error del servidor (${response.status}): ${responseText}`
         );
       }
 
-      const data = await response.json();
+      const data = JSON.parse(responseText);
       console.log("Respuesta recibida de Gemini:", data);
 
       if (
