@@ -6,7 +6,7 @@ import config from "../config.js";
 class GeminiService {
   constructor() {
     this.baseUrl =
-      "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
     this.apiKey = config.GEMINI_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -36,10 +36,6 @@ Instrucciones para responder:
   async checkConnection() {
     try {
       console.log("Iniciando verificación de conexión con Gemini...");
-      console.log(
-        "API Key actual:",
-        this.apiKey ? "***" + this.apiKey.slice(-4) : "No configurada"
-      );
 
       if (
         !this.apiKey ||
@@ -55,10 +51,8 @@ Instrucciones para responder:
       console.log("Enviando mensaje de prueba a Gemini...");
 
       const requestData = {
-        model: "gemini-pro",
         contents: [
           {
-            role: "user",
             parts: [{ text: testMessage }],
           },
         ],
@@ -121,39 +115,9 @@ Instrucciones para responder:
       }
 
       const requestData = {
-        model: "gemini-pro",
         contents: [
           {
-            role: "system",
-            parts: [{ text: this.systemPrompt }],
-          },
-          {
-            role: "user",
-            parts: [{ text: userMessage }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.9,
-          maxOutputTokens: 250,
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE",
+            parts: [{ text: this.systemPrompt + "\n\n" + userMessage }],
           },
         ],
       };
