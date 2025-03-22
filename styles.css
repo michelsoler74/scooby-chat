@@ -1,0 +1,99 @@
+/* Estilos generales para el cuerpo del documento */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  background-color: #787978; /* Color de fondo suave y relajante */
+  font-family: Arial, sans-serif;
+}
+
+/* Contenedor para centrar todo el contenido de la página */
+.container {
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+/* Estilo del contenedor del avatar de Scooby */
+#scooby-avatar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 20px;
+}
+
+/* Estilo para los videos del avatar de Scooby */
+#scooby-callado,
+#scooby-hablando {
+  width: 100%;
+  max-width: 250px;
+  max-height: 250px;
+  border-radius: 10px;
+}
+
+/* Estilo del cuadro de conversación */
+#chat-box {
+  border: 2px solid #4caf50; /* Color de borde que resalta */
+  border-radius: 10px;
+  padding: 15px;
+  height: 300px;
+  overflow-y: auto;
+  background-color: #ffffff; /* Fondo blanco para un buen contraste */
+  color: #333333; /* Texto oscuro para destacar */
+  margin-top: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo de los mensajes dentro del cuadro de conversación */
+.mensaje {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: #f1f8e9; /* Fondo suave para los mensajes */
+  color: #333333; /* Texto oscuro */
+}
+
+/* Estilo para los botones */
+button.btn {
+  background-color: #4caf50; /* Color verde amigable para la vista */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  margin-top: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button.btn:hover {
+  background-color: #388e3c; /* Color más oscuro al pasar el mouse */
+}
+
+/* Media queries para dispositivos más pequeños */
+@media (max-width: 768px) {
+  #scooby-avatar,
+  #chat-box {
+    max-width: 100%;
+  }
+  button.btn {
+    font-size: 1rem;
+    padding: 8px 15px;
+  }
+}
+
+@media (max-width: 576px) {
+  #chat-box {
+    height: calc(40vh - 50px); /* Ajustar altura en pantallas pequeñas */
+  }
+  button.btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+}

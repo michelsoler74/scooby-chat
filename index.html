@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scooby - Tu Amigo Virtual</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link href="src/css/styles.css" rel="stylesheet" />
+  </head>
+  <body class="bg-light">
+    <div class="container-fluid vh-100 d-flex flex-column">
+      <!-- Header -->
+      <header class="row py-3">
+        <div class="col text-center">
+          <h1>Scooby - Tu Amigo Virtual</h1>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="row flex-grow-1">
+        <div class="col-md-8 d-flex flex-column">
+          <!-- Conversation Area -->
+          <div
+            id="conversation"
+            class="flex-grow-1 overflow-auto mb-3 p-3 bg-white rounded shadow-sm"
+          >
+            <!-- Messages will be added here -->
+          </div>
+
+          <!-- Input Area -->
+          <div class="input-group mb-3">
+            <input
+              type="text"
+              id="text-input"
+              class="form-control"
+              placeholder="Escribe tu mensaje aquí..."
+            />
+            <button id="send-btn" class="btn btn-primary">Enviar</button>
+          </div>
+
+          <!-- Voice Controls -->
+          <div class="buttons-container text-center mb-3">
+            <button id="talk-btn" class="btn btn-success">
+              Hablar con Scooby
+            </button>
+            <button id="stop-btn" class="btn btn-danger" disabled>
+              Detener
+            </button>
+            <button id="resume-btn" class="btn btn-warning" disabled>
+              Continuar
+            </button>
+          </div>
+
+          <!-- Microphone Status -->
+          <div id="mic-status" class="text-center mb-3">
+            <small class="text-muted"
+              >Estado del micrófono: Verificando...</small
+            >
+          </div>
+
+          <!-- Microphone Help Info -->
+          <div class="alert alert-info mic-help-info mb-3">
+            <h5 class="alert-heading">Consejos para usar el micrófono:</h5>
+            <ul class="mb-0">
+              <li>Habla fuerte y claro, cerca del micrófono</li>
+              <li>
+                Asegúrate que el volumen del micrófono esté al máximo en Windows
+              </li>
+              <li>
+                Si hay errores "no-speech", utiliza el modo de texto escribiendo
+                en el campo de entrada
+              </li>
+              <li>
+                Verifica que has dado permisos al navegador para usar el
+                micrófono
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Scooby Video Area -->
+        <div class="col-md-4 d-flex align-items-center justify-content-center">
+          <div class="video-container">
+            <video id="scooby-callado" class="w-100" loop muted>
+              <source
+                src="src/assets/videos/scooby-callado.mp4"
+                type="video/mp4"
+              />
+            </video>
+            <video id="scooby-hablando" class="w-100 d-none" loop>
+              <source src="src/assets/videos/scooby.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="src/js/app.js"></script>
+
+    <!-- Script para verificar el estado del micrófono -->
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const micStatus = document.getElementById("mic-status");
+
+        // Verificar soporte de SpeechRecognition
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          micStatus.innerHTML =
+            '<small class="text-danger">❌ Tu navegador no soporta reconocimiento de voz. Por favor usa Chrome o Edge.</small>';
+          return;
+        }
+
+        try {
+          console.log("Verificando permisos del micrófono...");
+          console.log("User Agent:", navigator.userAgent);
+
+          // Enumerar dispositivos de audio
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioDevices = devices.filter(
+            (device) => device.kind === "audioinput"
+          );
+          console.log("Dispositivos de audio disponibles:", audioDevices);
+
+          if (audioDevices.length === 0) {
+            micStatus.innerHTML =
+              '<small class="text-danger">❌ No se detectó ningún micrófono</small>';
+            return;
+          }
+
+          // Solicitar permisos del micrófono
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+
+          console.log(
+            "Configuración de audio:",
+            stream.getAudioTracks()[0].getSettings()
+          );
+          micStatus.innerHTML =
+            '<small class="text-success">✅ Micrófono detectado y funcionando</small>';
+
+          // Detener el stream de prueba
+          stream.getTracks().forEach((track) => track.stop());
+        } catch (error) {
+          console.error("Error al acceder al micrófono:", error);
+          let errorMessage = "❌ Error: ";
+
+          if (error.name === "NotAllowedError") {
+            errorMessage +=
+              "Permiso denegado. Por favor, permite el acceso al micrófono.";
+          } else if (error.name === "NotFoundError") {
+            errorMessage +=
+              "No se encontró ningún micrófono. Verifica que esté conectado.";
+          } else {
+            errorMessage += error.message;
+          }
+
+          micStatus.innerHTML = `<small class="text-danger">${errorMessage}</small>`;
+        }
+      });
+    </script>
+  </body>
+</html>
