@@ -31,18 +31,24 @@ Instrucciones para responder:
    */
   async checkConnection() {
     try {
-      if (!this.apiKey || this.apiKey === "TU_API_KEY_AQUI") {
+      if (
+        !this.apiKey ||
+        this.apiKey === "TU_API_KEY_AQUI" ||
+        this.apiKey === null
+      ) {
         throw new Error(
-          "Por favor, configura tu API key de Gemini en el archivo config.js"
+          "No se encontró una API key válida. Por favor, añade tu API key de Gemini usando ?key=TU_API_KEY en la URL"
         );
       }
 
+      console.log("Verificando conexión con Gemini...");
       const testMessage = "Test connection";
       await this.getResponse(testMessage);
       this.isConnected = true;
+      console.log("Conexión con Gemini establecida correctamente");
       return true;
     } catch (error) {
-      console.error("Error de conexión:", error);
+      console.error("Error de conexión con Gemini:", error);
       this.isConnected = false;
       throw new Error(`Error al conectar con Gemini: ${error.message}`);
     }
@@ -53,6 +59,14 @@ Instrucciones para responder:
    */
   async getResponse(userMessage) {
     try {
+      if (
+        !this.apiKey ||
+        this.apiKey === "TU_API_KEY_AQUI" ||
+        this.apiKey === null
+      ) {
+        throw new Error("API key no válida o no proporcionada");
+      }
+
       if (!this.isConnected && userMessage !== "Test connection") {
         await this.checkConnection();
       }
@@ -106,24 +120,38 @@ Instrucciones para responder:
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Error del servidor:", errorText);
-        throw new Error(`Error del servidor: ${response.status}`);
+
+        // Verificar si el error es por API key inválida
+        if (response.status === 400 || response.status === 401) {
+          throw new Error(
+            "API key inválida o no autorizada. Por favor, verifica tu API key de Gemini"
+          );
+        }
+
+        throw new Error(
+          `Error del servidor (${response.status}): ${errorText}`
+        );
       }
 
       const data = await response.json();
-      console.log("Respuesta recibida:", data);
+      console.log("Respuesta recibida de Gemini:", data);
 
       if (
         !data.candidates ||
         !data.candidates[0] ||
         !data.candidates[0].content
       ) {
-        throw new Error("Respuesta inválida de Gemini");
+        throw new Error(
+          "Respuesta inválida de Gemini: formato de respuesta incorrecto"
+        );
       }
 
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
       console.error("Error completo:", error);
-      throw new Error(`No se pudo obtener respuesta: ${error.message}`);
+      throw new Error(
+        `No se pudo obtener respuesta de Gemini: ${error.message}`
+      );
     }
   }
 }
