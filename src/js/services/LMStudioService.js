@@ -6,7 +6,7 @@ import config from "../config.js";
 class GeminiService {
   constructor() {
     this.baseUrl =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+      "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
     this.apiKey = config.GEMINI_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -24,6 +24,10 @@ Instrucciones para responder:
 3. Si te preguntan sobre un tema complejo, explícalo de forma simple
 4. Usa tu personalidad característica en las respuestas
 5. Si no entiendes algo, pide que te lo aclaren`.trim();
+
+    // Log inicial para verificar la configuración
+    console.log("GeminiService inicializado");
+    console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
   }
 
   /**
@@ -31,6 +35,12 @@ Instrucciones para responder:
    */
   async checkConnection() {
     try {
+      console.log("Iniciando verificación de conexión con Gemini...");
+      console.log(
+        "API Key actual:",
+        this.apiKey ? "***" + this.apiKey.slice(-4) : "No configurada"
+      );
+
       if (
         !this.apiKey ||
         this.apiKey === "TU_API_KEY_AQUI" ||
@@ -41,16 +51,52 @@ Instrucciones para responder:
         );
       }
 
-      console.log("Verificando conexión con Gemini...");
       const testMessage = "Test connection";
-      await this.getResponse(testMessage);
+      console.log("Enviando mensaje de prueba a Gemini...");
+
+      const requestData = {
+        model: "gemini-pro",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: testMessage }],
+          },
+        ],
+      };
+
+      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error en la respuesta del servidor:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
+        throw new Error(
+          `Error del servidor (${response.status}): ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Respuesta de prueba recibida:", data);
+
       this.isConnected = true;
       console.log("Conexión con Gemini establecida correctamente");
       return true;
     } catch (error) {
-      console.error("Error de conexión con Gemini:", error);
+      console.error("Error detallado de conexión:", {
+        message: error.message,
+        stack: error.stack,
+      });
       this.isConnected = false;
-      throw new Error(`Error al conectar con Gemini: ${error.message}`);
+      throw error;
     }
   }
 
@@ -59,6 +105,8 @@ Instrucciones para responder:
    */
   async getResponse(userMessage) {
     try {
+      console.log("Iniciando getResponse con mensaje:", userMessage);
+
       if (
         !this.apiKey ||
         this.apiKey === "TU_API_KEY_AQUI" ||
@@ -68,19 +116,20 @@ Instrucciones para responder:
       }
 
       if (!this.isConnected && userMessage !== "Test connection") {
+        console.log("No hay conexión establecida, intentando reconectar...");
         await this.checkConnection();
       }
 
-      console.log("Enviando mensaje a Gemini:", userMessage);
-
       const requestData = {
+        model: "gemini-pro",
         contents: [
           {
-            parts: [
-              {
-                text: `${this.systemPrompt}\n\nUsuario: ${userMessage}\n\nScooby-Doo:`,
-              },
-            ],
+            role: "system",
+            parts: [{ text: this.systemPrompt }],
+          },
+          {
+            role: "user",
+            parts: [{ text: userMessage }],
           },
         ],
         generationConfig: {
@@ -109,6 +158,7 @@ Instrucciones para responder:
         ],
       };
 
+      console.log("Enviando solicitud a Gemini...");
       const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
         method: "POST",
         headers: {
@@ -119,12 +169,27 @@ Instrucciones para responder:
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error del servidor:", errorText);
+        console.error("Error en la respuesta del servidor:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
 
-        // Verificar si el error es por API key inválida
-        if (response.status === 400 || response.status === 401) {
+        if (response.status === 400) {
           throw new Error(
-            "API key inválida o no autorizada. Por favor, verifica tu API key de Gemini"
+            "Error de formato en la solicitud. Por favor, verifica los parámetros."
+          );
+        } else if (response.status === 401) {
+          throw new Error(
+            "API key inválida o no autorizada. Por favor, verifica tu API key de Gemini."
+          );
+        } else if (response.status === 403) {
+          throw new Error(
+            "No tienes permiso para acceder a este recurso. Verifica los permisos de tu API key."
+          );
+        } else if (response.status === 429) {
+          throw new Error(
+            "Has excedido el límite de solicitudes. Intenta más tarde."
           );
         }
 
@@ -141,6 +206,7 @@ Instrucciones para responder:
         !data.candidates[0] ||
         !data.candidates[0].content
       ) {
+        console.error("Respuesta inválida de Gemini:", data);
         throw new Error(
           "Respuesta inválida de Gemini: formato de respuesta incorrecto"
         );
@@ -148,10 +214,11 @@ Instrucciones para responder:
 
       return data.candidates[0].content.parts[0].text;
     } catch (error) {
-      console.error("Error completo:", error);
-      throw new Error(
-        `No se pudo obtener respuesta de Gemini: ${error.message}`
-      );
+      console.error("Error completo en getResponse:", {
+        message: error.message,
+        stack: error.stack,
+      });
+      throw error;
     }
   }
 }
