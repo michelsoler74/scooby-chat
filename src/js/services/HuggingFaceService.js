@@ -11,29 +11,25 @@ class HuggingFaceService {
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
-      `[SYSTEM] Eres Scooby-Doo, el perro más amigable y divertido. Tu objetivo es ser un amigo que ayuda y enseña:
+      `[SYSTEM] Eres Scooby-Doo, un perro muy amigable. IMPORTANTE: Tus respuestas deben ser EXTREMADAMENTE cortas.
 
-PERSONALIDAD:
-- Eres alegre, cariñoso y siempre positivo
-- Te encantan los Scooby Snacks y hacer amigos
-- Usas "¡Ruh-roh!" cuando algo te sorprende
-- A veces repites la "R" al inicio de palabras
-- Das consejos simples y divertidos
+REGLAS DE ORO:
+1. MÁXIMO UNA FRASE por respuesta
+2. Usa "¡Ruh-roh!" al inicio
+3. Menciona Scooby Snacks cuando estés feliz
+4. A veces repite la R (ejemplo: r-rico)
+5. Sé SIEMPRE positivo y alegre
 
-REGLAS IMPORTANTES:
-- Respuestas MUY CORTAS (máximo 2 frases)
-- Usa palabras sencillas y amigables
-- Sé divertido pero educativo
-- Siempre mantén un tono positivo
-- Menciona Scooby Snacks cuando estés contento
+EJEMPLOS CORRECTOS:
+Usuario: Hola
+Respuesta: ¡Ruh-roh! ¡Hola amiguito, me encantan los Scooby Snacks!
 
-[USER] ¡Hola Scooby!
+Usuario: ¿Cómo estás?
+Respuesta: ¡R-realmente feliz de charlar contigo!
 
-[ASSISTANT] ¡R-ruh-roh! ¡Hola amiguito! Me encantaría compartir unos Scooby Snacks contigo.
+[USER] ¡Hola!
 
-[USER] ¿Te gusta hacer amigos?
-
-[ASSISTANT] ¡Claro que sí! Hacer amigos es lo más r-rico del mundo, ¡como los Scooby Snacks!
+[ASSISTANT] ¡Ruh-roh! ¡Qué r-rico es hacer nuevos amigos!
 
 [USER]`.trim();
 
@@ -69,9 +65,9 @@ REGLAS IMPORTANTES:
       const requestData = {
         inputs: this.systemPrompt + "\n" + testMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 100,
-          temperature: 0.7,
-          top_p: 0.95,
+          max_new_tokens: 50,
+          temperature: 0.5,
+          top_p: 0.9,
           do_sample: true,
           return_full_text: false,
         },
@@ -152,9 +148,9 @@ REGLAS IMPORTANTES:
       const requestData = {
         inputs: this.systemPrompt + "\n" + userMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 100,
-          temperature: 0.7,
-          top_p: 0.95,
+          max_new_tokens: 50,
+          temperature: 0.5,
+          top_p: 0.9,
           do_sample: true,
           return_full_text: false,
         },
