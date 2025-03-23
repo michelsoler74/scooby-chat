@@ -5,8 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
+    // Asegurarnos que usamos el modelo 2b
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b-instruct";
+      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
