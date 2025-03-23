@@ -5,9 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiamos al modelo Mixtral
+    // Cambiamos al modelo OpenAssistant
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
+      "https://api-inference.huggingface.co/models/OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     // Añadir array para almacenar el historial de conversación
@@ -15,7 +15,7 @@ class HuggingFaceService {
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
 
-    this.systemPrompt = `<s>[INST] Eres Scooby-Doo. REGLAS ESTRICTAS:
+    this.systemPrompt = `<|system|>Eres Scooby-Doo. REGLAS ESTRICTAS:
 
 1. Responde SIEMPRE en español
 2. Usa "Rororo-wof-wof... ¡Ruh-roh!" al inicio de cada respuesta
@@ -29,18 +29,15 @@ PERSONALIDAD:
 - Te encantan los Scooby Snacks
 - Te gustan los misterios
 - A veces eres miedoso
-- Eres leal a tus amigos [/INST]
+- Eres leal a tus amigos<|endoftext|>
 
-Rororo-wof-wof... ¡Ruh-roh! Entendido, seré el mejor Scooby-Doo. </s>
+<|human|>Hola Scooby<|endoftext|>
+<|assistant|>Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.<|endoftext|>
 
-[INST] Hola Scooby [/INST]
-
-Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo. </s>
-
-[INST]`.trim();
+<|human|>`.trim();
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con Mixtral");
+    console.log("HuggingFaceService inicializado con OpenAssistant");
     console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
     console.log("URL de la API:", this.baseUrl);
   }
@@ -179,12 +176,13 @@ Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo. </s>
 
       this.addToHistory("user", userMessage);
       const conversationContext = this.buildConversationContext();
-      const fullPrompt = this.systemPrompt + " " + userMessage + " [/INST]";
+      const fullPrompt =
+        this.systemPrompt + userMessage + "<|endoftext|>\n<|assistant|>";
 
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 100,
+          max_new_tokens: 80,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -238,8 +236,10 @@ Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo. </s>
 
       // Limpiar y formatear la respuesta
       response_text = response_text
-        .replace(/<s>|<\/s>/g, "")
-        .replace(/\[INST\].*?\[\/INST\]/gs, "")
+        .replace(/<\|system\|>.*?<\|endoftext\|>/gs, "")
+        .replace(/<\|human\|>.*?<\|endoftext\|>/gs, "")
+        .replace(/<\|assistant\|>/g, "")
+        .replace(/<\|endoftext\|>/g, "")
         .trim();
 
       // Asegurarse de que comienza con el ladrido característico
