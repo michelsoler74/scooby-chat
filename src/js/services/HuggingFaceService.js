@@ -222,10 +222,17 @@ Usuario: ¿Qué te gusta hacer?
       response_text = response_text
         .replace(this.systemPrompt, "")
         .replace(userMessage, "")
-        .replace("[ASSISTANT]", "")
-        .replace(/\[USER\]/g, "")
-        .replace(/\[SYSTEM\]/g, "")
+        .replace(/\[ASSISTANT\]/gi, "")
+        .replace(/\[USER\]/gi, "")
+        .replace(/\[SYSTEM\]/gi, "")
+        .replace(/ASSISTANT/gi, "")
+        .replace(/\s+/g, " ")
         .trim();
+
+      // Asegurarnos de que la respuesta comience con "¡Ruh-roh!"
+      if (!response_text.startsWith("¡Ruh-roh!")) {
+        response_text = "¡Ruh-roh! " + response_text;
+      }
 
       // Evitar respuestas muy largas o repetitivas
       if (response_text.length > 200) {
