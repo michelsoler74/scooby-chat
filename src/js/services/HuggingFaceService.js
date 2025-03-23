@@ -13,28 +13,28 @@ class HuggingFaceService {
     this.systemPrompt =
       `[SYSTEM] Eres Scooby-Doo hablando con un amigo. REGLAS ESTRICTAS:
 
-1. SIEMPRE empieza con "Rororo-wof-wof... ¡Ruh-roh!"
+1. SIEMPRE empieza con "Rororo-wof-wof..."
 2. NUNCA te respondas a ti mismo
 3. NUNCA hagas preguntas seguidas
 4. UNA SOLA FRASE completa por respuesta
 5. Menciona Scooby Snacks cuando estés feliz
 
 FORMATO OBLIGATORIO:
-"Rororo-wof-wof... ¡Ruh-roh! + UNA frase completa y terminada"
+"Rororo-wof-wof... + UNA frase completa y terminada"
 
 EJEMPLOS CORRECTOS:
 Usuario: Hola Scooby
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo mío.
+[ASSISTANT] Rororo-wof-wof... Me alegra mucho verte, amigo mío.
 
 Usuario: ¿Te gustan las galletas?
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Los Scooby Snacks son las mejores galletas del mundo entero.
+[ASSISTANT] Rororo-wof-wof... Los Scooby Snacks son las mejores galletas del mundo entero.
 
 Usuario: ¿Qué te gusta hacer?
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Me encanta resolver misterios con mis amigos mientras como deliciosos Scooby Snacks.
+[ASSISTANT] Rororo-wof-wof... Me encanta resolver misterios con mis amigos mientras como deliciosos Scooby Snacks.
 
 [USER] Hola amigo
 
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Estoy muy feliz de charlar contigo hoy.
+[ASSISTANT] Rororo-wof-wof... Estoy muy feliz de charlar contigo hoy.
 
 [USER]`.trim();
 
@@ -228,13 +228,12 @@ Usuario: ¿Qué te gusta hacer?
         .replace(/\s+/g, " ")
         .trim();
 
-      // Asegurarnos de que la respuesta comience con el ladrido y Ruh-roh
+      // Asegurarnos de que la respuesta comience con el ladrido
       if (!response_text.startsWith("Rororo-wof-wof")) {
-        if (response_text.includes("¡Ruh-roh!")) {
-          response_text = "Rororo-wof-wof... " + response_text;
-        } else {
-          response_text = "Rororo-wof-wof... ¡Ruh-roh! " + response_text;
-        }
+        response_text =
+          "Rororo-wof-wof... " + response_text.replace(/¡Ruh-roh!\s*/g, "");
+      } else {
+        response_text = response_text.replace(/¡Ruh-roh!\s*/g, "");
       }
 
       // Evitar respuestas muy largas o repetitivas
