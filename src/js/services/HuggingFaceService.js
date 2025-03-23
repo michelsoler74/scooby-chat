@@ -6,7 +6,7 @@ import config from "../config.js";
 class HuggingFaceService {
   constructor() {
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-7b";
+      "https://api-inference.huggingface.co/models/PlanTL-GOB-ES/gpt2-large-beto-cased";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -50,7 +50,7 @@ Instrucciones para responder:
       const requestData = {
         inputs: this.systemPrompt + "\n\n" + testMessage,
         parameters: {
-          max_new_tokens: 1024,
+          max_length: 200,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -121,7 +121,7 @@ Instrucciones para responder:
       const requestData = {
         inputs: this.systemPrompt + "\n\n" + userMessage,
         parameters: {
-          max_new_tokens: 1024,
+          max_length: 200,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -161,9 +161,11 @@ Instrucciones para responder:
       const data = JSON.parse(responseText);
       console.log("Respuesta recibida de Hugging Face:", data);
 
-      // La respuesta de Hugging Face viene en un formato diferente
+      // La respuesta de este modelo viene en un formato diferente
       if (Array.isArray(data) && data.length > 0) {
-        return data[0].generated_text;
+        return data[0].generated_text.replace(this.systemPrompt, "").trim();
+      } else if (typeof data === "string") {
+        return data.replace(this.systemPrompt, "").trim();
       } else {
         throw new Error(
           "Respuesta inválida de Hugging Face: formato de respuesta incorrecto"
