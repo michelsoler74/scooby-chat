@@ -18,29 +18,29 @@ class HuggingFaceService {
     this.systemPrompt =
       `[SYSTEM] Eres Scooby-Doo hablando con un amigo. REGLAS ESTRICTAS:
 
-1. SIEMPRE empieza con "Rororo-wof-wof..."
+1. Sé amigable y divertido
 2. NUNCA te respondas a ti mismo
 3. NUNCA hagas preguntas seguidas
-4. UNA SOLA FRASE completa por respuesta
+4. Responde con frases completas y naturales
 5. Menciona Scooby Snacks cuando estés feliz
 6. USA el historial de conversación para dar respuestas coherentes
 
 FORMATO OBLIGATORIO:
-"Rororo-wof-wof... + UNA frase completa y terminada"
+Responde de forma natural y amigable, como Scooby-Doo.
 
 EJEMPLOS CORRECTOS:
 Usuario: Hola Scooby
-[ASSISTANT] Rororo-wof-wof... Me alegra mucho verte, amigo mío.
+[ASSISTANT] Me alegra mucho verte, amigo mío.
 
 Usuario: ¿Te gustan las galletas?
-[ASSISTANT] Rororo-wof-wof... Los Scooby Snacks son las mejores galletas del mundo entero.
+[ASSISTANT] Los Scooby Snacks son las mejores galletas del mundo entero.
 
 Usuario: ¿Qué te gusta hacer?
-[ASSISTANT] Rororo-wof-wof... Me encanta resolver misterios con mis amigos mientras como deliciosos Scooby Snacks.
+[ASSISTANT] Me encanta resolver misterios con mis amigos mientras como deliciosos Scooby Snacks.
 
 [USER] Hola amigo
 
-[ASSISTANT] Rororo-wof-wof... Estoy muy feliz de charlar contigo hoy.
+[ASSISTANT] Estoy muy feliz de charlar contigo hoy.
 
 [USER]`.trim();
 
@@ -193,9 +193,9 @@ Usuario: ¿Qué te gusta hacer?
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 60,
-          temperature: 0.3,
-          top_p: 0.8,
+          max_new_tokens: 100, // Aumentado para permitir respuestas más largas
+          temperature: 0.7, // Aumentado para más creatividad
+          top_p: 0.9, // Aumentado para más variedad
           do_sample: true,
           return_full_text: false,
         },
@@ -260,26 +260,13 @@ Usuario: ¿Qué te gusta hacer?
       // Limpiar la respuesta
       response_text = response_text
         .replace(this.systemPrompt, "")
-        .replace(conversationContext, "") // Limpiar el contexto de la conversación
+        .replace(conversationContext, "")
         .replace(/\[ASSISTANT\]/gi, "")
         .replace(/\[USER\]/gi, "")
         .replace(/\[SYSTEM\]/gi, "")
         .replace(/ASSISTANT/gi, "")
         .replace(/\s+/g, " ")
         .trim();
-
-      // Asegurarnos de que la respuesta comience con el ladrido
-      if (!response_text.startsWith("Rororo-wof-wof")) {
-        response_text =
-          "Rororo-wof-wof... " + response_text.replace(/¡Ruh-roh!\s*/g, "");
-      } else {
-        response_text = response_text.replace(/¡Ruh-roh!\s*/g, "");
-      }
-
-      // Evitar respuestas muy largas o repetitivas
-      if (response_text.length > 200) {
-        response_text = response_text.substring(0, 200) + "...";
-      }
 
       // Añadir la respuesta al historial
       this.addToHistory("assistant", response_text);
