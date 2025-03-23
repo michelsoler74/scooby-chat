@@ -129,6 +129,17 @@ main {
   border-radius: 20px;
 }
 
+#clear-chat-btn {
+  background-color: #6c757d;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+#clear-chat-btn:hover {
+  background-color: #5a6268;
+  transform: scale(1.05);
+}
+
 /* Video Container */
 .video-container {
   max-width: 500px;

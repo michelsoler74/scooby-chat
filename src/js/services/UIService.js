@@ -72,7 +72,14 @@ export class UIService {
     }
   }
 
-  setupEventHandlers({ onTalk, onStop, onResume, onTextSubmit, onContinue }) {
+  setupEventHandlers({
+    onTalk,
+    onStop,
+    onResume,
+    onTextSubmit,
+    onContinue,
+    onChatCleared,
+  }) {
     this.talkButton?.addEventListener("click", onTalk);
     this.stopButton?.addEventListener("click", onStop);
     this.resumeButton?.addEventListener("click", onResume);
@@ -83,6 +90,19 @@ export class UIService {
         if (this.lastUserMessage && !this.continuationInProgress) {
           this.continueButton.classList.add("d-none");
           onContinue(this.lastUserMessage, this.lastResponse);
+        }
+      });
+    }
+
+    // Botón limpiar chat
+    const clearChatButton = document.getElementById("clear-chat-btn");
+    if (clearChatButton) {
+      clearChatButton.addEventListener("click", () => {
+        // Mostrar confirmación antes de limpiar
+        if (
+          confirm("¿Estás seguro de que quieres limpiar el historial de chat?")
+        ) {
+          this.clearChat(onChatCleared);
         }
       });
     }
@@ -142,6 +162,13 @@ export class UIService {
     }
     if (this.continueButton) {
       this.continueButton.disabled = isProcessing || isSpeaking;
+    }
+
+    // Botón limpiar chat (siempre disponible)
+    const clearChatButton = document.getElementById("clear-chat-btn");
+    if (clearChatButton) {
+      // Deshabilitar solo cuando está procesando una respuesta
+      clearChatButton.disabled = isProcessing;
     }
 
     // Cuando estamos escuchando, Scooby debe estar en silencio
@@ -334,6 +361,36 @@ export class UIService {
       this.scoobyTalking.classList.add("d-none");
       this.scoobyTalking.pause();
       this.scoobySilent.play();
+    }
+  }
+
+  /**
+   * Limpia el historial de chat del área de conversación
+   * @param {function} onChatCleared - Callback a ejecutar después de limpiar el chat
+   */
+  clearChat(onChatCleared = null) {
+    // Verificar que existe el elemento de conversación
+    if (!this.conversation) return;
+
+    // Limpiar todos los mensajes del chat excepto mensajes del sistema importantes
+    while (this.conversation.firstChild) {
+      this.conversation.removeChild(this.conversation.firstChild);
+    }
+
+    // Reiniciar los mensajes almacenados
+    this.lastUserMessage = "";
+    this.lastResponse = "";
+
+    // Ocultar el botón de continuar
+    this.hideContinueButton();
+
+    // Mostrar mensaje de que el chat ha sido limpiado
+    this.addMessage("Sistema", "✨ El chat ha sido limpiado");
+    console.log("Chat limpiado");
+
+    // Ejecutar callback si existe
+    if (typeof onChatCleared === "function") {
+      onChatCleared();
     }
   }
 }

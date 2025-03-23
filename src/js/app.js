@@ -74,6 +74,18 @@ class ScoobyApp {
     }
   }
 
+  /**
+   * Reinicia la conversación después de limpiar el chat
+   */
+  reinitWelcomeMessage() {
+    // Añadir mensaje de bienvenida de Scooby después de limpiar el chat
+    setTimeout(() => {
+      this.uiService.addSystemMessage(
+        "¡Ruf-ruf-ruuuf! ¡Ri-ri-riiiii! ¡Chat limpio y listo para nuevas aventuras! ¿De qué quieres hablar ahora? ¡Tengo muchas Scooby Galletas para compartir contigo!"
+      );
+    }, 1000);
+  }
+
   setupSpeechCallbacks() {
     // Solo configurar si el servicio existe
     if (!this.speechService) return;
@@ -225,6 +237,11 @@ class ScoobyApp {
       onContinue: (userMessage, prevResponse) => {
         // Continuar la respuesta
         this.continuarRespuesta(userMessage, prevResponse);
+      },
+
+      onChatCleared: () => {
+        // Mostrar mensaje de bienvenida después de limpiar el chat
+        this.reinitWelcomeMessage();
       },
     });
   }
