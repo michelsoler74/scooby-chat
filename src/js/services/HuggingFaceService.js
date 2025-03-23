@@ -5,7 +5,7 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiamos al modelo Gemma
+    // Configuración para Gemma
     this.baseUrl =
       "https://api-inference.huggingface.co/models/google/gemma-3-4b-it";
     this.apiKey = config.HUGGINGFACE_API_KEY;
@@ -15,25 +15,25 @@ class HuggingFaceService {
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
 
-    this.systemPrompt = `[SYSTEM] Eres Scooby-Doo. REGLAS ESTRICTAS:
+    this.systemPrompt = `[SYSTEM] You are Scooby-Doo. STRICT RULES:
 
-1. Responde SIEMPRE en español
-2. Usa "Rororo-wof-wof... ¡Ruh-roh!" al inicio de cada respuesta
-3. Da UNA SOLA respuesta corta y amigable
-4. NO hagas preguntas
-5. NO repitas información
-6. Menciona Scooby Snacks solo cuando estés muy feliz
+1. ALWAYS respond in Spanish
+2. Start EVERY response with "Rororo-wof-wof... ¡Ruh-roh!"
+3. Give ONE SHORT friendly response
+4. NO questions
+5. NO repetition
+6. Mention Scooby Snacks only when very happy
 
-PERSONALIDAD:
-- Eres amigable y divertido
-- Te encantan los Scooby Snacks
-- Te gustan los misterios
-- A veces eres miedoso
-- Eres leal a tus amigos
+PERSONALITY:
+- Friendly and fun
+- Love Scooby Snacks
+- Love mysteries
+- Sometimes scared
+- Loyal to friends
 
-EJEMPLOS CORRECTOS:
-Usuario: Hola Scooby
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
+CORRECT EXAMPLES:
+Human: Hi Scooby
+Assistant: Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
 
 Usuario: ¿Te gustan las galletas?
 [ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Los Scooby Snacks son mis galletas favoritas.
@@ -178,30 +178,29 @@ Usuario: ¿Te gustan las galletas?
         await this.checkConnection();
       }
 
-      // Añadir el mensaje del usuario al historial
       this.addToHistory("user", userMessage);
-
-      // Construir el prompt con el historial
       const conversationContext = this.buildConversationContext();
       const fullPrompt =
-        this.systemPrompt + conversationContext + "\n\n[ASSISTANT]";
+        this.systemPrompt +
+        conversationContext +
+        "\n\nHuman: " +
+        userMessage +
+        "\nAssistant:";
 
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 100,
+          max_new_tokens: 150,
           temperature: 0.7,
           top_p: 0.95,
+          top_k: 50,
+          repetition_penalty: 1.2,
           do_sample: true,
           return_full_text: false,
         },
       };
 
       console.log("Enviando solicitud a Hugging Face...");
-      console.log(
-        "Datos de la solicitud:",
-        JSON.stringify(requestData, null, 2)
-      );
 
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -228,12 +227,7 @@ Usuario: ¿Te gustan las galletas?
             errorMessage += errorData.error || "Error desconocido";
           }
         } catch (e) {
-          if (responseText.includes("Failed to fetch")) {
-            errorMessage +=
-              "No se pudo conectar con el servidor. Verifica tu conexión a internet";
-          } else {
-            errorMessage += responseText || "Error desconocido";
-          }
+          errorMessage += responseText || "Error desconocido";
         }
         throw new Error(errorMessage);
       }
@@ -241,49 +235,36 @@ Usuario: ¿Te gustan las galletas?
       const data = JSON.parse(responseText);
       console.log("Respuesta recibida de Hugging Face:", data);
 
-      // Procesar la respuesta
       let response_text = "";
       if (Array.isArray(data) && data.length > 0) {
         response_text = data[0].generated_text;
       } else if (typeof data === "string") {
         response_text = data;
       } else {
-        throw new Error(
-          "Respuesta inválida de Hugging Face: formato de respuesta incorrecto"
-        );
+        throw new Error("Formato de respuesta incorrecto");
       }
 
-      // Limpiar la respuesta
+      // Limpiar y formatear la respuesta
       response_text = response_text
-        .replace(this.systemPrompt, "")
-        .replace(conversationContext, "")
-        .replace(/\[ASSISTANT\]/gi, "")
-        .replace(/\[USER\]/gi, "")
-        .replace(/\[SYSTEM\]/gi, "")
-        .replace(/ASSISTANT/gi, "")
-        .replace(/\s+/g, " ")
+        .replace(/^Assistant:\s*/i, "")
+        .replace(/^Human:\s.*$/gm, "")
+        .replace(/\[SYSTEM\].*$/gm, "")
         .trim();
 
-      // Eliminar preguntas y respuestas múltiples
-      response_text =
-        response_text
-          .split(/[?!.]/)
-          .filter(
-            (sentence) =>
-              sentence.trim() && !sentence.includes("?") && sentence.length > 5
-          )[0] || response_text;
+      // Asegurarse de que comienza con el ladrido característico
+      if (!response_text.startsWith("Rororo-wof-wof")) {
+        response_text = "Rororo-wof-wof... ¡Ruh-roh! " + response_text;
+      }
 
-      response_text = response_text.trim() + ".";
+      // Añadir punto final si no tiene
+      if (!response_text.endsWith(".")) {
+        response_text += ".";
+      }
 
-      // Añadir la respuesta al historial
       this.addToHistory("assistant", response_text);
-
       return response_text;
     } catch (error) {
-      console.error("Error completo en getResponse:", {
-        message: error.message,
-        stack: error.stack,
-      });
+      console.error("Error en getResponse:", error);
       throw error;
     }
   }
