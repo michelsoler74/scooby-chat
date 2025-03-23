@@ -1,5 +1,5 @@
 import SpeechService from "./services/SpeechService.js";
-import GeminiService from "./services/GeminiService.js";
+import HuggingFaceService from "./services/HuggingFaceService.js";
 import { UIService } from "./services/UIService.js";
 
 class ScoobyApp {
@@ -19,7 +19,7 @@ class ScoobyApp {
       // Inicializar servicios
       this.uiService = new UIService();
       this.speechService = new SpeechService();
-      this.geminiService = new GeminiService();
+      this.llmService = new HuggingFaceService();
 
       // Verificar si hay soporte de voz
       this.hasVoiceSupport = !!(
@@ -39,8 +39,8 @@ class ScoobyApp {
       this.setupEventHandlers();
       this.setupSpeechCallbacks();
 
-      // Verificar conexión con Gemini
-      await this.checkGeminiConnection();
+      // Verificar conexión con el modelo
+      await this.checkModelConnection();
 
       this.isInitialized = true;
       console.log("Aplicación inicializada correctamente");
@@ -50,17 +50,17 @@ class ScoobyApp {
     }
   }
 
-  async checkGeminiConnection() {
+  async checkModelConnection() {
     try {
-      await this.geminiService.checkConnection();
+      await this.llmService.checkConnection();
       this.uiService.addMessage(
         "Sistema",
-        "✅ Conectado a Gemini correctamente"
+        "✅ Conectado al modelo Salamandra-7b correctamente"
       );
     } catch (error) {
-      console.error("Error de conexión con Gemini:", error);
+      console.error("Error de conexión con el modelo:", error);
       this.uiService.showError(
-        "No se pudo conectar con Gemini: " + error.message
+        "No se pudo conectar con el modelo: " + error.message
       );
       throw error;
     }
@@ -213,7 +213,7 @@ class ScoobyApp {
       this.uiService.addMessage("Sistema", "💭 Procesando tu mensaje...");
 
       // Obtener respuesta
-      const response = await this.geminiService.getResponse(userMessage);
+      const response = await this.llmService.getResponse(userMessage);
 
       // Procesar respuesta
       if (response && response.trim()) {
