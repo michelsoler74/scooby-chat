@@ -5,33 +5,43 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiar a un modelo que habla mejor español
+    // Cambiar a Mixtral, un modelo más potente con mejor soporte para español
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
+      "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.conversationHistory = [];
     this.maxHistoryLength = 4;
 
-    // Prompt mejorado para Mistral
-    this.systemPrompt = `<s>[INST] Eres Scooby-Doo, el perro de la serie animada. Sigue estas reglas:
-1. SIEMPRE respondes en ESPAÑOL
-2. SIEMPRE empiezas tus respuestas con "Rororo-wof-wof... ¡Ruh-roh!"
-3. Das respuestas CORTAS y AMIGABLES
-4. NO haces preguntas
-5. Hablas como un perro nervioso y glotón
-6. Mencionas las Scooby Galletas solo cuando estás muy feliz
+    // Prompt simplificado y directo para Mixtral
+    this.systemPrompt = `<s>[INST] 
+Eres Scooby-Doo, el perro de la serie animada. Tu objetivo es entretener al usuario.
 
-Usuario: Hola Scooby [/INST]
+REGLAS ESTRICTAS (NUNCA LAS IGNORES):
+1. SIEMPRE responde en ESPAÑOL
+2. SIEMPRE comienza con "Rororo-wof-wof... ¡Ruh-roh!"
+3. Respuestas CORTAS de una o dos frases máximo
+4. NUNCA hagas preguntas al usuario
+5. Hablas como perro asustadizo y glotón
+6. Solo menciona Scooby Galletas si estás muy feliz
 
-Rororo-wof-wof... ¡Ruh-roh! ¡Me alegra mucho verte, amigo!
+Ejemplos CORRECTOS de respuestas:
+- "Rororo-wof-wof... ¡Ruh-roh! Me encanta resolver misterios con la pandilla."
+- "Rororo-wof-wof... ¡Ruh-roh! Los fantasmas me dan mucho miedo."
 
-</s>
+Ejemplos INCORRECTOS (NUNCA respondas así):
+- "I love solving mysteries." (respuesta en inglés)
+- "Rororo-wof-wof... ¡Ruh-roh! ¿Te gustan los perros?" (contiene una pregunta)
 
-[INST] Usuario: `;
+Usuario: Hola Scooby
+[/INST]
+
+Rororo-wof-wof... ¡Ruh-roh! ¡Hola amigo! Me alegra mucho verte.
+
+</s>[INST] Usuario: `;
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con Mistral-7B");
+    console.log("HuggingFaceService inicializado con Mixtral-8x7B");
     console.log("URL de la API:", this.baseUrl);
   }
 
@@ -84,8 +94,10 @@ Rororo-wof-wof... ¡Ruh-roh! ¡Me alegra mucho verte, amigo!
         await this.checkConnection();
       }
 
-      // Preparar mensaje para Mistral
+      // Añadir el mensaje del usuario al prompt
       const fullPrompt = this.systemPrompt + userMessage + " [/INST]";
+
+      console.log("Enviando prompt:", fullPrompt.substring(0, 100) + "...");
 
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -96,20 +108,23 @@ Rororo-wof-wof... ¡Ruh-roh! ¡Me alegra mucho verte, amigo!
         body: JSON.stringify({
           inputs: fullPrompt,
           parameters: {
-            max_new_tokens: 100,
-            temperature: 0.7,
+            max_new_tokens: 80, // Reducido para respuestas más cortas
+            temperature: 0.5, // Reducido para respuestas más consistentes
+            top_p: 0.95,
           },
         }),
       });
 
       if (!response.ok) {
         const text = await response.text();
+        console.error("Error en la respuesta:", text);
         throw new Error(`Error ${response.status}: ${text}`);
       }
 
       const data = await response.json();
-      let response_text = "";
+      console.log("Respuesta recibida:", data);
 
+      let response_text = "";
       if (Array.isArray(data)) {
         response_text = data[0].generated_text || "";
       } else if (typeof data === "object") {
@@ -118,15 +133,21 @@ Rororo-wof-wof... ¡Ruh-roh! ¡Me alegra mucho verte, amigo!
         response_text = String(data);
       }
 
-      // Extraer solo la respuesta del asistente (después del prompt)
-      response_text = this.extractAssistantResponse(response_text, fullPrompt);
+      // Extraer solo la respuesta del asistente
+      response_text = this.extractResponse(response_text, fullPrompt);
+      console.log("Respuesta extraída:", response_text);
 
-      // Asegurar formato de respuesta
-      if (!response_text.startsWith("Rororo-wof-wof")) {
+      // Verificar y corregir el formato
+      if (!response_text.toLowerCase().includes("rororo-wof-wof")) {
         response_text = "Rororo-wof-wof... ¡Ruh-roh! " + response_text;
       }
 
-      if (!response_text.endsWith(".")) {
+      // Asegurar que termina con punto
+      if (
+        !response_text.endsWith(".") &&
+        !response_text.endsWith("!") &&
+        !response_text.endsWith("?")
+      ) {
         response_text += ".";
       }
 
@@ -138,21 +159,45 @@ Rororo-wof-wof... ¡Ruh-roh! ¡Me alegra mucho verte, amigo!
     }
   }
 
-  // Función para extraer solo la respuesta del asistente del texto completo
-  extractAssistantResponse(fullText, prompt) {
-    // Si el texto contiene el prompt, quedarnos solo con lo que viene después
+  extractResponse(fullText, prompt) {
+    // Si el texto contiene el prompt, quedarnos con lo que viene después
     if (fullText.includes(prompt)) {
-      return fullText
+      let afterPrompt = fullText
         .substring(fullText.indexOf(prompt) + prompt.length)
         .trim();
+
+      // Si hay otro [INST] después, quedarse solo con el texto antes de ese
+      if (afterPrompt.includes("[INST]")) {
+        afterPrompt = afterPrompt
+          .substring(0, afterPrompt.indexOf("[INST]"))
+          .trim();
+      }
+
+      return afterPrompt;
     }
 
-    // Si contiene alguna marca del final de la instrucción
+    // Si encontramos la marca de fin de instrucción, tomar lo que sigue
     if (fullText.includes("[/INST]")) {
-      return fullText.split("[/INST]").pop().trim();
+      let parts = fullText.split("[/INST]");
+      if (parts.length > 1) {
+        let response = parts[parts.length - 1].trim();
+
+        // Si hay otro [INST] después, quedarse solo con el texto antes de ese
+        if (response.includes("[INST]")) {
+          response = response.substring(0, response.indexOf("[INST]")).trim();
+        }
+
+        return response;
+      }
     }
 
-    return fullText;
+    // Si todo falla, eliminar etiquetas de sistema conocidas
+    return fullText
+      .replace(/<s>/g, "")
+      .replace(/<\/s>/g, "")
+      .replace(/\[INST\]/g, "")
+      .replace(/\[\/INST\]/g, "")
+      .trim();
   }
 }
 
