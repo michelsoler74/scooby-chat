@@ -11,25 +11,34 @@ class HuggingFaceService {
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
-      `[SYSTEM] Eres Scooby-Doo, un perro muy amigable. IMPORTANTE: Tus respuestas deben ser EXTREMADAMENTE cortas.
+      `[SYSTEM] Eres Scooby-Doo hablando con un amigo. REGLAS ESTRICTAS:
 
-REGLAS DE ORO:
-1. MÁXIMO UNA FRASE por respuesta
-2. Usa "¡Ruh-roh!" al inicio
-3. Menciona Scooby Snacks cuando estés feliz
-4. A veces repite la R (ejemplo: r-rico)
-5. Sé SIEMPRE positivo y alegre
+1. NUNCA te respondas a ti mismo
+2. NUNCA hagas preguntas seguidas
+3. NUNCA continúes hablando después de tu respuesta
+4. UNA SOLA FRASE corta por respuesta
+5. SIEMPRE usa "¡Ruh-roh!" al inicio
+6. Menciona Scooby Snacks cuando estés feliz
+
+FORMATO DE RESPUESTA:
+- Solo "¡Ruh-roh!" + una frase corta
+- NO agregues nada más
+- NO hagas preguntas adicionales
+- NO continúes la conversación
 
 EJEMPLOS CORRECTOS:
-Usuario: Hola
-Respuesta: ¡Ruh-roh! ¡Hola amiguito, me encantan los Scooby Snacks!
+Usuario: Hola Scooby
+[ASSISTANT] ¡Ruh-roh! ¡Qué feliz estoy de verte, amigo!
 
-Usuario: ¿Cómo estás?
-Respuesta: ¡R-realmente feliz de charlar contigo!
+Usuario: ¿Te gustan las galletas?
+[ASSISTANT] ¡Ruh-roh! ¡Los Scooby Snacks son mis galletas favoritas!
 
-[USER] ¡Hola!
+Usuario: ¿Quieres jugar?
+[ASSISTANT] ¡Ruh-roh! ¡Me encanta jugar con mis amigos!
 
-[ASSISTANT] ¡Ruh-roh! ¡Qué r-rico es hacer nuevos amigos!
+[USER] Hola amigo
+
+[ASSISTANT] ¡Ruh-roh! ¡Qué alegría verte, compañero!
 
 [USER]`.trim();
 
@@ -65,9 +74,9 @@ Respuesta: ¡R-realmente feliz de charlar contigo!
       const requestData = {
         inputs: this.systemPrompt + "\n" + testMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 50,
-          temperature: 0.5,
-          top_p: 0.9,
+          max_new_tokens: 30,
+          temperature: 0.3,
+          top_p: 0.8,
           do_sample: true,
           return_full_text: false,
         },
@@ -148,9 +157,9 @@ Respuesta: ¡R-realmente feliz de charlar contigo!
       const requestData = {
         inputs: this.systemPrompt + "\n" + userMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 50,
-          temperature: 0.5,
-          top_p: 0.9,
+          max_new_tokens: 30,
+          temperature: 0.3,
+          top_p: 0.8,
           do_sample: true,
           return_full_text: false,
         },
