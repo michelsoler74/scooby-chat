@@ -186,7 +186,6 @@ export class UIService {
   showContinueButton() {
     if (this.continueButton) {
       this.continueButton.classList.remove("d-none");
-      this.continueButton.scrollIntoView({ behavior: "smooth" });
     }
   }
 

@@ -219,6 +219,22 @@ main {
     margin: 0.5rem;
     font-size: 0.9rem;
   }
+
+  #continue-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .buttons-container {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .buttons-container .btn {
+    flex: 1 1 auto;
+    margin: 0.25rem;
+    min-width: 45%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -319,17 +335,16 @@ main {
 
 /* Continuar respuesta button */
 #continue-btn {
-  display: block;
-  margin: 10px auto;
-  padding: 8px 15px;
   background-color: #ffcc00;
   color: #333;
   border: 2px solid #ffa700;
-  border-radius: 20px;
   font-weight: bold;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   animation: pulse 1.5s infinite;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  white-space: nowrap;
 }
 
 #continue-btn:hover {

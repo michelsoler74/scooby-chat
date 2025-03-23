@@ -208,6 +208,9 @@ class ScoobyApp {
     this.isProcessing = true;
     this.uiService.updateButtonStates(false, true);
 
+    // Ocultar el botón de continuar al procesar un nuevo mensaje
+    this.uiService.hideContinueButton();
+
     // Detener reconocimiento mientras procesamos
     if (this.speechService) {
       this.speechService.stopListening();
