@@ -37,13 +37,8 @@ Instrucciones para responder:
   async checkConnection() {
     try {
       console.log("Iniciando verificación de conexión con Gemini...");
-      console.log("API Key (últimos 4 caracteres):", this.apiKey.slice(-4));
 
-      if (
-        !this.apiKey ||
-        this.apiKey === "TU_API_KEY_AQUI" ||
-        this.apiKey === null
-      ) {
+      if (!this.apiKey) {
         throw new Error(
           "No se encontró una API key válida. Por favor, añade tu API key de Gemini usando ?key=TU_API_KEY en la URL"
         );
@@ -58,6 +53,7 @@ Instrucciones para responder:
             parts: [{ text: testMessage }],
           },
         ],
+        generationConfig: config.GEMINI_CONFIG,
       };
 
       console.log(
@@ -83,14 +79,26 @@ Instrucciones para responder:
       console.log("Respuesta completa del servidor:", responseText);
 
       if (!response.ok) {
+        const errorData = JSON.parse(responseText);
         console.error("Error en la respuesta del servidor:", {
           status: response.status,
           statusText: response.statusText,
-          response: responseText,
+          error: errorData,
         });
-        throw new Error(
-          `Error del servidor (${response.status}): ${responseText}`
-        );
+
+        let errorMessage = "Error desconocido al conectar con Gemini";
+        if (errorData.error) {
+          errorMessage = `Error: ${
+            errorData.error.message || errorData.error.status
+          }`;
+          if (errorData.error.details) {
+            errorMessage += `\nDetalles: ${JSON.stringify(
+              errorData.error.details
+            )}`;
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = JSON.parse(responseText);
@@ -116,11 +124,7 @@ Instrucciones para responder:
     try {
       console.log("Iniciando getResponse con mensaje:", userMessage);
 
-      if (
-        !this.apiKey ||
-        this.apiKey === "TU_API_KEY_AQUI" ||
-        this.apiKey === null
-      ) {
+      if (!this.apiKey) {
         throw new Error("API key no válida o no proporcionada");
       }
 
@@ -135,6 +139,7 @@ Instrucciones para responder:
             parts: [{ text: this.systemPrompt + "\n\n" + userMessage }],
           },
         ],
+        generationConfig: config.GEMINI_CONFIG,
       };
 
       console.log("Enviando solicitud a Gemini...");
@@ -161,33 +166,26 @@ Instrucciones para responder:
       console.log("Respuesta completa del servidor:", responseText);
 
       if (!response.ok) {
+        const errorData = JSON.parse(responseText);
         console.error("Error en la respuesta del servidor:", {
           status: response.status,
           statusText: response.statusText,
-          response: responseText,
+          error: errorData,
         });
 
-        if (response.status === 400) {
-          throw new Error(
-            "Error de formato en la solicitud. Por favor, verifica los parámetros."
-          );
-        } else if (response.status === 401) {
-          throw new Error(
-            "API key inválida o no autorizada. Por favor, verifica tu API key de Gemini."
-          );
-        } else if (response.status === 403) {
-          throw new Error(
-            "No tienes permiso para acceder a este recurso. Verifica los permisos de tu API key."
-          );
-        } else if (response.status === 429) {
-          throw new Error(
-            "Has excedido el límite de solicitudes. Intenta más tarde."
-          );
+        let errorMessage = "Error desconocido al procesar el mensaje";
+        if (errorData.error) {
+          errorMessage = `Error: ${
+            errorData.error.message || errorData.error.status
+          }`;
+          if (errorData.error.details) {
+            errorMessage += `\nDetalles: ${JSON.stringify(
+              errorData.error.details
+            )}`;
+          }
         }
 
-        throw new Error(
-          `Error del servidor (${response.status}): ${responseText}`
-        );
+        throw new Error(errorMessage);
       }
 
       const data = JSON.parse(responseText);

@@ -1,5 +1,5 @@
 import SpeechService from "./services/SpeechService.js";
-import GeminiService from "./services/LMStudioService.js";
+import GeminiService from "./services/GeminiService.js";
 import { UIService } from "./services/UIService.js";
 
 class ScoobyApp {
