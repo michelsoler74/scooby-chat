@@ -36,8 +36,26 @@ main {
   display: flex;
   flex-direction: row;
   padding: 1rem;
-  gap: 1rem;
+  gap: 2rem;
   height: calc(100vh - 80px);
+  align-items: stretch;
+}
+
+/* Chat Section */
+.chat-section {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;
+}
+
+/* Video Section */
+.video-section {
+  flex: 0 0 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
 /* Conversation Area */
@@ -69,6 +87,10 @@ main {
 }
 
 /* Input Area */
+.input-area {
+  margin-top: auto;
+}
+
 .input-group {
   margin-bottom: 1rem;
 }
@@ -103,7 +125,7 @@ main {
 /* Video Container */
 .video-container {
   width: 100%;
-  max-width: 300px;
+  max-width: 500px;
   margin: 0 auto;
   border-radius: 10px;
   overflow: hidden;
@@ -143,6 +165,16 @@ main {
     flex-direction: column-reverse;
     height: auto;
     padding: 0.5rem;
+  }
+
+  .chat-section {
+    flex: 1;
+    width: 100%;
+  }
+
+  .video-section {
+    flex: none;
+    width: 100%;
   }
 
   #conversation {
