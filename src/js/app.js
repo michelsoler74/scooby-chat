@@ -59,8 +59,16 @@ class ScoobyApp {
         "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
 
-      // Añadir mensaje de bienvenida de Scooby más corto y solicitando información
+      // Forzar el nuevo mensaje de bienvenida de Scooby
       setTimeout(() => {
+        console.log("Enviando mensaje de bienvenida actualizado");
+        // Limpiar cualquier mensaje existente en la UI antes de mostrar el nuevo
+        const existingMessages = document.querySelectorAll(".system-message");
+        if (existingMessages.length > 1) {
+          // Si ya hay mensajes del sistema, eliminar el último (que sería el de bienvenida)
+          existingMessages[existingMessages.length - 1].remove();
+        }
+
         this.uiService.addSystemMessage(
           "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!"
         );
