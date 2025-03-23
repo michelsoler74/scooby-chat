@@ -362,6 +362,9 @@ export class UIService {
         // Asegurar que el video se reproduce desde el principio
         this.scoobyTalking.currentTime = 0;
 
+        // Configurar el video para que se repita mientras Scooby habla
+        this.scoobyTalking.loop = true;
+
         // Crear una promesa para manejar la reproducción
         const playPromise = this.scoobyTalking.play();
 

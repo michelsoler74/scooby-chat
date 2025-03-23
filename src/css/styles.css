@@ -77,16 +77,11 @@ header h1 {
   opacity: 0;
   visibility: hidden;
   transform: translateY(10px);
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
   text-align: left;
 }
 
-.mic-help-tooltip.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
+.mic-help-tooltip.show,
 .mic-help-tooltip.show-persistent {
   opacity: 1;
   visibility: visible;
@@ -259,24 +254,33 @@ main {
 
   .chat-section {
     flex: none;
-    height: 50vh;
+    height: 60vh;
     min-width: unset;
     order: 2;
+    max-height: none;
+    width: 100%;
+    margin-bottom: 1rem;
   }
 
   .video-section {
     flex: none;
-    height: 40vh;
+    height: 35vh;
     order: 1;
+    max-height: 250px;
   }
 
   #conversation {
-    max-height: calc(50vh - 120px);
+    max-height: calc(60vh - 140px);
     margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   .input-area {
     padding: 0.5rem;
+    position: relative;
+    width: 100%;
   }
 
   .video-container {
@@ -306,7 +310,6 @@ main {
     font-size: 1.2rem;
   }
 
-  /* Ajustes para el tooltip en móviles */
   .help-toggle {
     width: 32px;
     height: 32px;
@@ -314,9 +317,31 @@ main {
   }
 
   .mic-help-tooltip {
-    width: 250px;
-    right: 5px;
+    width: calc(100% - 20px);
+    max-width: 300px;
+    right: 10px;
     font-size: 0.85rem;
+    position: fixed;
+    top: auto;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    z-index: 2000;
+  }
+
+  .mic-help-tooltip.show,
+  .mic-help-tooltip.show-persistent {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .mic-help-tooltip::after {
+    content: "×";
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
   }
 
   #continue-btn {

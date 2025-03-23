@@ -103,9 +103,18 @@ class ScoobyApp {
             this.isSpeaking = true;
             this.uiService.updateButtonStates(false, false, true);
 
+            // Reproducir el mensaje con una segunda espera para asegurar que las voces estén cargadas
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
             // Intentar reproducir la voz y loggear todo el proceso
             console.log("Reproduciendo mensaje de bienvenida en voz alta");
-            await this.speechService.speak(welcomeMessage);
+
+            const speakingPromise = this.speechService.speak(welcomeMessage);
+            await speakingPromise;
+
+            // Mantener Scooby animado un poco más
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
             console.log("Mensaje de bienvenida reproducido correctamente");
           } catch (error) {
             console.error("Error al sintetizar voz de bienvenida:", error);
@@ -150,9 +159,18 @@ class ScoobyApp {
           this.isSpeaking = true;
           this.uiService.updateButtonStates(false, false, true);
 
+          // Pequeña espera para asegurar que la UI se ha actualizado
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
           // Intentar reproducir la voz
           console.log("Reproduciendo mensaje después de limpiar chat");
-          await this.speechService.speak(welcomeMessage);
+
+          const speakingPromise = this.speechService.speak(welcomeMessage);
+          await speakingPromise;
+
+          // Mantener Scooby animado un poco más
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
           console.log("Mensaje post-limpieza reproducido correctamente");
         } catch (error) {
           console.error(
@@ -371,12 +389,15 @@ class ScoobyApp {
             this.isSpeaking = true;
             this.uiService.updateButtonStates(false, false, true);
 
-            // Intentar reproducir la voz y loggear todo el proceso
-            console.log(
-              "Reproduciendo respuesta en voz alta:",
-              response.substring(0, 50) + "..."
-            );
-            await this.speechService.speak(response);
+            // Iniciar un temporizador para mantener Scooby hablando hasta que realmente termine
+            const speakingPromise = this.speechService.speak(response);
+
+            // Esperar a que termine la síntesis de voz
+            await speakingPromise;
+
+            // Mantener la animación un poco más antes de terminar
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
             console.log("Respuesta reproducida correctamente");
           } catch (error) {
             console.error("Error al sintetizar voz de respuesta:", error);
@@ -461,12 +482,21 @@ class ScoobyApp {
             this.isSpeaking = true;
             this.uiService.updateButtonStates(false, false, true);
 
+            // Pequeña espera para asegurar que la UI se ha actualizado
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
             // Intentar reproducir la voz y loggear todo el proceso
             console.log(
               "Reproduciendo continuación en voz alta:",
               response.substring(0, 50) + "..."
             );
-            await this.speechService.speak(response);
+
+            const speakingPromise = this.speechService.speak(response);
+            await speakingPromise;
+
+            // Mantener Scooby animado un poco más
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
             console.log("Continuación reproducida correctamente");
           } catch (error) {
             console.error("Error al sintetizar voz de continuación:", error);

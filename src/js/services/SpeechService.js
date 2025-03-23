@@ -31,14 +31,34 @@ class SpeechService {
   initSynthesis() {
     try {
       // Cargar voces
-      const voices = this.synthesis.getVoices();
-      if (voices.length > 0) {
-        this.setVoice(voices);
-      } else {
-        this.synthesis.onvoiceschanged = () => {
-          const voices = this.synthesis.getVoices();
+      const loadVoices = () => {
+        const voices = this.synthesis.getVoices();
+        if (voices.length > 0) {
           this.setVoice(voices);
+          console.log(`Voces cargadas: ${voices.length}`);
+          return true;
+        }
+        return false;
+      };
+
+      // Intento inicial de cargar voces
+      if (!loadVoices()) {
+        console.log(
+          "No se pudieron cargar las voces inmediatamente, esperando evento onvoiceschanged"
+        );
+
+        // Configurar un listener para cuando las voces estén disponibles
+        this.synthesis.onvoiceschanged = () => {
+          loadVoices();
         };
+
+        // Como respaldo, intentar cargar las voces después de un breve retraso
+        setTimeout(() => {
+          if (!this.selectedVoice) {
+            console.log("Intentando cargar voces después de timeout");
+            loadVoices();
+          }
+        }, 1000);
       }
     } catch (error) {
       console.error("Error al inicializar síntesis:", error);

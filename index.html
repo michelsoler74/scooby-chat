@@ -177,23 +177,62 @@
         if (helpToggle && micHelpTooltip) {
           console.log("Configurando eventos del tooltip");
 
-          helpToggle.addEventListener("mouseenter", () => {
-            console.log("Mouse enter en botón de ayuda");
-            micHelpTooltip.classList.add("show");
-          });
+          // Detectar si es dispositivo móvil
+          const isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
 
-          helpToggle.addEventListener("mouseleave", () => {
-            console.log("Mouse leave en botón de ayuda");
-            if (!micHelpTooltip.classList.contains("show-persistent")) {
-              micHelpTooltip.classList.remove("show");
-            }
-          });
+          if (isMobile) {
+            // En móvil solo mostrar/ocultar con clic
+            helpToggle.addEventListener("click", function (event) {
+              event.preventDefault();
+              event.stopPropagation();
+              console.log("Clic en botón de ayuda (móvil)");
+              micHelpTooltip.classList.toggle("show-persistent");
+            });
 
-          // También funciona con clic para dispositivos móviles
-          helpToggle.addEventListener("click", () => {
-            console.log("Clic en botón de ayuda");
-            micHelpTooltip.classList.toggle("show-persistent");
-          });
+            // Añadir evento para cerrar tooltip al hacer clic en la X
+            micHelpTooltip.addEventListener("click", function (event) {
+              if (
+                event.target === micHelpTooltip ||
+                (event.clientX >
+                  micHelpTooltip.getBoundingClientRect().right - 30 &&
+                  event.clientY <
+                    micHelpTooltip.getBoundingClientRect().top + 30)
+              ) {
+                console.log("Cerrando tooltip (móvil)");
+                micHelpTooltip.classList.remove("show-persistent");
+                micHelpTooltip.classList.remove("show");
+              }
+            });
+
+            // Cerrar al hacer clic en cualquier parte del documento
+            document.addEventListener("click", function (event) {
+              if (
+                !micHelpTooltip.contains(event.target) &&
+                event.target !== helpToggle
+              ) {
+                micHelpTooltip.classList.remove("show-persistent");
+                micHelpTooltip.classList.remove("show");
+              }
+            });
+          } else {
+            // En desktop usar hover y clic
+            helpToggle.addEventListener("mouseenter", () => {
+              console.log("Mouse enter en botón de ayuda");
+              micHelpTooltip.classList.add("show");
+            });
+
+            helpToggle.addEventListener("mouseleave", () => {
+              console.log("Mouse leave en botón de ayuda");
+              if (!micHelpTooltip.classList.contains("show-persistent")) {
+                micHelpTooltip.classList.remove("show");
+              }
+            });
+
+            helpToggle.addEventListener("click", () => {
+              console.log("Clic en botón de ayuda");
+              micHelpTooltip.classList.toggle("show-persistent");
+            });
+          }
 
           // Ocultamos cualquier posible panel de consejos antiguo
           const oldHelpPanel = document.querySelector(".mic-help-info");
@@ -262,6 +301,25 @@
           }
 
           micStatus.innerHTML = `<small class="text-danger">${errorMessage}</small>`;
+        }
+
+        // Ajustes específicos para móvil
+        if (window.innerWidth <= 768) {
+          // Asegurarnos de que el área de conversación es scrollable
+          const conversation = document.getElementById("conversation");
+          if (conversation) {
+            conversation.style.overflowY = "auto";
+            conversation.style.webkitOverflowScrolling = "touch";
+          }
+
+          // Ajustar la altura de la ventana en iOS para manejar barra de direcciones
+          const setVh = () => {
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty("--vh", `${vh}px`);
+          };
+
+          setVh();
+          window.addEventListener("resize", setVh);
         }
       });
     </script>
