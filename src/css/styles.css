@@ -316,3 +316,35 @@ main {
     transform: translate(-50%, 0);
   }
 }
+
+/* Continuar respuesta button */
+#continue-btn {
+  display: block;
+  margin: 10px auto;
+  padding: 8px 15px;
+  background-color: #ffcc00;
+  color: #333;
+  border: 2px solid #ffa700;
+  border-radius: 20px;
+  font-weight: bold;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  animation: pulse 1.5s infinite;
+}
+
+#continue-btn:hover {
+  background-color: #ffa700;
+  transform: scale(1.05);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 204, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 204, 0, 0);
+  }
+}

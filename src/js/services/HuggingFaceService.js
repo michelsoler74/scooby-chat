@@ -108,8 +108,29 @@ Usuario: Hola Scooby
         await this.checkConnection();
       }
 
-      // Añadir el mensaje del usuario al prompt
-      const fullPrompt = this.systemPrompt + userMessage + " [/INST]";
+      // Verificar si es una solicitud de continuación
+      const isContinuation = userMessage.includes(
+        "(continúa tu respuesta anterior)"
+      );
+
+      // Elegir el prompt adecuado
+      let fullPrompt;
+      if (isContinuation) {
+        // Si es continuación, usamos un prompt especial
+        const cleanUserMessage = userMessage
+          .replace("(continúa tu respuesta anterior)", "")
+          .trim();
+        fullPrompt = `<s>[INST] 
+Eres Scooby-Doo actuando como un Amigo Mentor para niños. Esta es una CONTINUACIÓN de tu respuesta anterior.
+IMPORTANTE: NO repitas lo que ya dijiste antes, SOLO CONTINÚA donde lo dejaste.
+
+Usuario: ${cleanUserMessage}
+Tu respuesta anterior estaba incompleta. Por favor continúa donde lo dejaste.
+[/INST]`;
+      } else {
+        // Prompt normal
+        fullPrompt = this.systemPrompt + userMessage + " [/INST]";
+      }
 
       console.log("Enviando prompt:", fullPrompt.substring(0, 100) + "...");
 

@@ -10,9 +10,15 @@ export class UIService {
     this.talkButton = document.getElementById("talk-btn");
     this.stopButton = document.getElementById("stop-btn");
     this.resumeButton = document.getElementById("resume-btn");
+    this.continueButton = document.getElementById("continue-btn");
     this.micStatus = document.getElementById("mic-status");
     this.scoobySilent = document.getElementById("scooby-callado");
     this.scoobyTalking = document.getElementById("scooby-hablando");
+
+    // Estado para continuación de respuestas
+    this.lastUserMessage = "";
+    this.lastResponse = "";
+    this.continuationInProgress = false;
 
     // Verificar elementos requeridos
     this.checkRequiredElements();
@@ -37,6 +43,7 @@ export class UIService {
       "talk-btn": this.talkButton,
       "stop-btn": this.stopButton,
       "resume-btn": this.resumeButton,
+      "continue-btn": this.continueButton,
       "text-input": this.textInput,
       "send-btn": this.sendButton,
     };
@@ -65,10 +72,20 @@ export class UIService {
     }
   }
 
-  setupEventHandlers({ onTalk, onStop, onResume, onTextSubmit }) {
+  setupEventHandlers({ onTalk, onStop, onResume, onTextSubmit, onContinue }) {
     this.talkButton?.addEventListener("click", onTalk);
     this.stopButton?.addEventListener("click", onStop);
     this.resumeButton?.addEventListener("click", onResume);
+
+    // Botón continuar
+    if (this.continueButton) {
+      this.continueButton.addEventListener("click", () => {
+        if (this.lastUserMessage && !this.continuationInProgress) {
+          this.continueButton.classList.add("d-none");
+          onContinue(this.lastUserMessage, this.lastResponse);
+        }
+      });
+    }
 
     // Manejar envío de texto
     const handleTextSubmit = () => {
@@ -130,6 +147,7 @@ export class UIService {
    * Agrega un mensaje del usuario al chat
    */
   addUserMessage(text) {
+    this.lastUserMessage = text;
     this.addMessage("Usuario", text);
   }
 
@@ -137,7 +155,48 @@ export class UIService {
    * Agrega un mensaje del sistema al chat
    */
   addSystemMessage(text) {
+    this.lastResponse = text;
     this.addMessage("Scooby", text);
+
+    // Verificar si la respuesta podría estar incompleta
+    if (this.shouldShowContinueButton(text)) {
+      this.showContinueButton();
+    } else {
+      this.hideContinueButton();
+    }
+  }
+
+  /**
+   * Determina si la respuesta podría estar incompleta
+   */
+  shouldShowContinueButton(text) {
+    if (!text || text.length < 50) return false;
+
+    // Verificar si la respuesta no tiene un final claro
+    const hasProperEnding = /[.!?]$/.test(text.trim());
+    const endsWithEllipsis = text.trim().endsWith("...");
+    const reachedTokenLimit = text.length >= 115; // Cerca del límite de tokens
+
+    return !hasProperEnding || endsWithEllipsis || reachedTokenLimit;
+  }
+
+  /**
+   * Muestra el botón de continuar respuesta
+   */
+  showContinueButton() {
+    if (this.continueButton) {
+      this.continueButton.classList.remove("d-none");
+      this.continueButton.scrollIntoView({ behavior: "smooth" });
+    }
+  }
+
+  /**
+   * Oculta el botón de continuar respuesta
+   */
+  hideContinueButton() {
+    if (this.continueButton) {
+      this.continueButton.classList.add("d-none");
+    }
   }
 
   /**

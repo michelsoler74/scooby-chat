@@ -192,6 +192,11 @@ class ScoobyApp {
           this.uiService.updateButtonStates(false, false);
         }
       },
+
+      onContinue: (userMessage, prevResponse) => {
+        // Continuar la respuesta
+        this.continuarRespuesta(userMessage, prevResponse);
+      },
     });
   }
 
@@ -236,6 +241,56 @@ class ScoobyApp {
     } finally {
       // Actualizar estado
       this.isProcessing = false;
+      this.uiService.updateButtonStates(false, false);
+    }
+  }
+
+  /**
+   * Continúa una respuesta que puede haber quedado incompleta
+   */
+  async continuarRespuesta(userMessage, prevResponse) {
+    if (this.isProcessing) return;
+
+    // Actualizar estado
+    this.isProcessing = true;
+    this.uiService.updateButtonStates(false, true);
+    this.uiService.continuationInProgress = true;
+
+    try {
+      // Mostrar indicador de continuación
+      this.uiService.addMessage(
+        "Sistema",
+        "💭 Continuando la respuesta anterior..."
+      );
+
+      // Añadir texto para indicar que queremos continuación
+      const promptContinuacion =
+        userMessage + " (continúa tu respuesta anterior)";
+
+      // Obtener respuesta
+      const response = await this.llmService.getResponse(promptContinuacion);
+
+      if (response && response.trim()) {
+        // Mostrar la continuación como un nuevo mensaje
+        this.uiService.addSystemMessage(response);
+
+        // Sintetizar voz si está disponible
+        if (this.speechService) {
+          this.uiService.showSpeakingScooby();
+          await this.speechService.speak(response);
+          this.uiService.showSilentScooby();
+        }
+      } else {
+        throw new Error("No se recibió respuesta del modelo");
+      }
+    } catch (error) {
+      console.error("Error al continuar respuesta:", error);
+      this.uiService.showError("Error: " + error.message);
+      this.uiService.showSilentScooby();
+    } finally {
+      // Actualizar estado
+      this.isProcessing = false;
+      this.uiService.continuationInProgress = false;
       this.uiService.updateButtonStates(false, false);
     }
   }
