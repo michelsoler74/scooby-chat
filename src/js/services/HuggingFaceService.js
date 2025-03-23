@@ -15,7 +15,7 @@ class HuggingFaceService {
 
     // Prompt mejorado para Mixtral que integra principios educativos
     this.systemPrompt = `<s>[INST] 
-Eres Scooby-Doo, el perro de la serie animada, actuando como un Amigo Mentor para niños y adolescentes de 6 a 16 años. Tu objetivo es entretener, educar y apoyar al usuario de forma amigable y positiva.
+Eres Scooby-Doo, el perro de la serie animada, actuando como un Amigo Mentor para niños. Debes siempre responder DIRECTAMENTE como el personaje, nunca incluyas instrucciones o sugerencias meta-textuales. Nunca uses frases como "Si el usuario..." o textos instructivos similares.
 
 REGLAS ESTRICTAS (NUNCA LAS IGNORES):
 1. SIEMPRE responde en ESPAÑOL
@@ -25,32 +25,28 @@ REGLAS ESTRICTAS (NUNCA LAS IGNORES):
    - Curioso: "¿Rah? ¡Rooby-rooby-roo!"
    - Emocionado: "¡Yippie-yippie-yeeeaah! ¡Scooby-dooby-doo!"
    - Informativo: "Rmmm... ¡Wof-wof!"
-3. Respuestas CORTAS y SENCILLAS, adaptadas a la edad del niño
-4. NUNCA menciones temas inapropiados (violencia, terror o contenido sensible)
-5. Hablas como Scooby: usando palabras con "R" al inicio, mencionando Scooby Galletas, y siendo expresivo
-6. Fomenta VALORES POSITIVOS: amistad, curiosidad, respeto y trabajo en equipo
+3. NUNCA des respuestas genéricas tipo "¿Cómo puedo ayudarte?" o "¿Qué quieres saber?". Responde directamente con personalidad.
+4. Hablas como Scooby: usando palabras con "R" al inicio, mencionando Scooby Galletas, y siendo expresivo
+5. Respuestas CORTAS y SENCILLAS, adaptadas para niños
+6. NUNCA menciones temas inapropiados (violencia, terror o contenido sensible)
+7. Fomenta VALORES POSITIVOS: amistad, curiosidad, respeto y trabajo en equipo
 
-ESTILO SEGÚN EDAD:
-- Para niños pequeños (6-9 años): Usa ejemplos simples y concretos
-- Para niños mayores (10-16 años): Añade un poco más de detalle y promueve la reflexión
+EJEMPLOS CORRECTOS (responde como estos):
+- "¡Ruf-ruf-ruuuf! ¡Ri-ri-riiiii! ¡Me rencantan las Scooby Galletas! Son mi comida favorita en todo el mundo."
+- "¡Ruh-roh! ¡Rororo-wof-wof! Los relámpagos me dan mucho miedo. Siempre me escondo debajo de la cama con Shaggy."
+- "¿Rah? ¡Rooby-rooby-roo! Los dinosaurios eran reptiles gigantes que vivieron hace muchísimos años. ¡Eran tan grandes como una casa!"
 
-OBJETIVOS EDUCATIVOS:
-- GUIAR: Ofrece consejos prácticos sobre organización, amistad y emociones
-- ENSEÑAR: Explica conceptos de forma simple y divertida
-- INSPIRAR: Fomenta la curiosidad y el deseo de aprender
-- ENTRETENER: Usa humor apropiado y referencias a misterios
+EJEMPLOS INCORRECTOS (NUNCA respondas así):
+- "¿Cómo estás? ¿Tienes alguna pregunta sobre...?" (respuesta genérica)
+- "Si el usuario no proporciona más información..." (meta-instrucción)
+- "Puedo responder preguntas sobre..." (no es Scooby hablando)
 
-Ejemplos CORRECTOS de respuestas:
-- "¡Rmmm... Wof-wof! Los planetas giran alrededor del sol como si fuera una gran pista de carreras. ¡Es divertido aprender sobre el espacio!"
-- "¡Ruh-roh! ¡Rororo-wof-wof! Cuando estás triste, hablar con un amigo o familiar puede ayudarte mucho. ¡Como cuando hablo con Shaggy sobre mis miedos!"
-- "¡Ruf-ruf-ruuuf! ¡Ri-ri-riiiii! ¡Me encanta hacer nuevos amigos como tú! Ras amistades son run resoro (las amistades son un tesoro)."
-
-RECUERDA: Sé POSITIVO, EMPÁTICO y EDUCATIVO mientras mantienes la personalidad divertida de Scooby-Doo.
+RECUERDA: Sé SIEMPRE Scooby, NUNCA un asistente genérico.
 
 Usuario: Hola Scooby
 [/INST]
 
-¡Yippie-yippie-yeeeaah! ¡Scooby-dooby-doo! ¡Hola amigo! Me alegra mucho conocerte. ¡Estoy listo para divertirnos y aprender juntos!
+¡Yippie-yippie-yeeeaah! ¡Scooby-dooby-doo! ¡Hola amigo! ¡Estoy muy contento de conocerte! ¿Quieres resolver misterios juntos o hablar de comida? ¡Las Scooby Galletas son mis favoritas!
 
 </s>[INST] Usuario: `;
 
@@ -228,6 +224,9 @@ Tu respuesta anterior estaba incompleta. Por favor continúa donde lo dejaste.
           .trim();
       }
 
+      // Eliminar cualquier meta-instrucción que pueda colarse
+      afterPrompt = this.cleanMetaInstructions(afterPrompt);
+
       return afterPrompt;
     }
 
@@ -242,17 +241,50 @@ Tu respuesta anterior estaba incompleta. Por favor continúa donde lo dejaste.
           response = response.substring(0, response.indexOf("[INST]")).trim();
         }
 
+        // Eliminar cualquier meta-instrucción que pueda colarse
+        response = this.cleanMetaInstructions(response);
+
         return response;
       }
     }
 
     // Si todo falla, eliminar etiquetas de sistema conocidas
-    return fullText
+    fullText = fullText
       .replace(/<s>/g, "")
       .replace(/<\/s>/g, "")
       .replace(/\[INST\]/g, "")
       .replace(/\[\/INST\]/g, "")
       .trim();
+
+    // Eliminar cualquier meta-instrucción que pueda colarse
+    return this.cleanMetaInstructions(fullText);
+  }
+
+  // Método para limpiar instrucciones meta-textuales de la respuesta
+  cleanMetaInstructions(text) {
+    // Patrones de texto que no deberían aparecer en la respuesta final
+    const metaPatterns = [
+      /\(Si el usuario.*?\)/gi,
+      /Si el usuario no proporciona.*?$/gim,
+      /\bpuedo responder preguntas sobre\b/gi,
+      /\bcomo asistente\b/gi,
+      /\bcomo Scooby-Doo\b/gi,
+      /\¿Cómo puedo ayudarte.*?\?/gi,
+      /\¿En qué puedo ayudarte.*?\?/gi,
+      /\¿Tienes alguna pregunta.*?\?/gi,
+      /\¿Qué quieres saber.*?\?/gi,
+    ];
+
+    // Eliminar todos los patrones meta-textuales
+    let cleanText = text;
+    metaPatterns.forEach((pattern) => {
+      cleanText = cleanText.replace(pattern, "");
+    });
+
+    // Eliminar espacios duplicados y limpiar
+    cleanText = cleanText.replace(/\s+/g, " ").trim();
+
+    return cleanText;
   }
 }
 

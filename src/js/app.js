@@ -57,6 +57,13 @@ class ScoobyApp {
         "Sistema",
         "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
+
+      // Añadir mensaje de bienvenida de Scooby
+      setTimeout(() => {
+        this.uiService.addSystemMessage(
+          "¡Yippie-yippie-yeeeaah! ¡Scooby-dooby-doo! ¡Hola amigo! ¡Qué alegría conocerte! Estoy listo para resolver misterios, hablar de aventuras o responder tus preguntas. ¡Las Scooby Galletas me dan super poderes para ayudarte!"
+        );
+      }, 1000);
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
       this.uiService.showError(
