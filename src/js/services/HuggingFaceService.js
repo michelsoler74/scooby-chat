@@ -5,9 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiamos al modelo OpenAssistant
+    // Cambiamos al modelo BlenderBot
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5";
+      "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     // Añadir array para almacenar el historial de conversación
@@ -15,21 +15,20 @@ class HuggingFaceService {
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
 
-    this.systemPrompt = `<|system|>Eres Scooby-Doo. REGLAS ESTRICTAS:
+    this.systemPrompt = `System: You are Scooby-Doo. STRICT RULES:
+1. ALWAYS respond in Spanish
+2. Start EVERY response with "Rororo-wof-wof... ¡Ruh-roh!"
+3. Give ONE SHORT friendly response
+4. NO questions
+5. NO repetition
+6. Mention Scooby Snacks only when very happy
 
-1. Responde SIEMPRE en español
-2. Usa "Rororo-wof-wof... ¡Ruh-roh!" al inicio de cada respuesta
-3. Da UNA SOLA respuesta corta y amigable
-4. NO hagas preguntas
-5. NO repitas información
-6. Menciona Scooby Snacks solo cuando estés muy feliz
-
-PERSONALIDAD:
-- Eres amigable y divertido
-- Te encantan los Scooby Snacks
-- Te gustan los misterios
-- A veces eres miedoso
-- Eres leal a tus amigos<|endoftext|>
+PERSONALITY:
+- Friendly and fun
+- Love Scooby Snacks
+- Love mysteries
+- Sometimes scared
+- Loyal to friends
 
 <|human|>Hola Scooby<|endoftext|>
 <|assistant|>Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.<|endoftext|>
@@ -37,7 +36,7 @@ PERSONALIDAD:
 <|human|>`.trim();
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con OpenAssistant");
+    console.log("HuggingFaceService inicializado con BlenderBot");
     console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
     console.log("URL de la API:", this.baseUrl);
   }
@@ -177,14 +176,14 @@ PERSONALIDAD:
       this.addToHistory("user", userMessage);
       const conversationContext = this.buildConversationContext();
       const fullPrompt =
-        this.systemPrompt + userMessage + "<|endoftext|>\n<|assistant|>";
+        this.systemPrompt + "\nHuman: " + userMessage + "\nAssistant:";
 
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 80,
+          max_length: 100,
           temperature: 0.7,
-          top_p: 0.95,
+          top_p: 0.9,
           do_sample: true,
           return_full_text: false,
         },
@@ -236,10 +235,9 @@ PERSONALIDAD:
 
       // Limpiar y formatear la respuesta
       response_text = response_text
-        .replace(/<\|system\|>.*?<\|endoftext\|>/gs, "")
-        .replace(/<\|human\|>.*?<\|endoftext\|>/gs, "")
-        .replace(/<\|assistant\|>/g, "")
-        .replace(/<\|endoftext\|>/g, "")
+        .replace(/System:.*?(?=\n|$)/gs, "")
+        .replace(/Human:.*?(?=\n|$)/gs, "")
+        .replace(/Assistant:/g, "")
         .trim();
 
       // Asegurarse de que comienza con el ladrido característico
