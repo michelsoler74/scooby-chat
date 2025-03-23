@@ -9,6 +9,25 @@ class ScoobyApp {
     this.isSpeaking = false;
     this.hasVoiceSupport = false;
 
+    // Añadir clase para permitir audio
+    document.body.classList.add("user-interaction");
+
+    // Configurar evento de interacción para navegadores que requieren interacción antes de reproducir audio
+    const setupUserInteraction = () => {
+      document.body.classList.add("user-interaction");
+      // Asegurarnos de que el audio esté disponible después de interacción
+      if (window.speechSynthesis) {
+        window.speechSynthesis.getVoices();
+      }
+    };
+
+    // Agregar detectores para capturar la primera interacción del usuario
+    document.addEventListener("click", setupUserInteraction, { once: true });
+    document.addEventListener("touchstart", setupUserInteraction, {
+      once: true,
+    });
+    document.addEventListener("keydown", setupUserInteraction, { once: true });
+
     // Inicializar
     this.initializeApp();
   }
@@ -60,7 +79,7 @@ class ScoobyApp {
       );
 
       // Forzar el nuevo mensaje de bienvenida de Scooby
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log("Enviando mensaje de bienvenida actualizado");
         // Limpiar cualquier mensaje existente en la UI antes de mostrar el nuevo
         const existingMessages = document.querySelectorAll(".system-message");
@@ -69,9 +88,37 @@ class ScoobyApp {
           existingMessages[existingMessages.length - 1].remove();
         }
 
-        this.uiService.addSystemMessage(
-          "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!"
-        );
+        const welcomeMessage =
+          "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!";
+
+        // Mostrar el mensaje en la UI
+        this.uiService.addSystemMessage(welcomeMessage);
+
+        // Asegurarnos de que la síntesis de voz se ejecute y sea visible
+        console.log("INICIANDO SÍNTESIS DE VOZ PARA MENSAJE DE BIENVENIDA");
+        if (this.speechService) {
+          try {
+            // Mostrar el Scooby hablando visualmente
+            this.uiService.showSpeakingScooby();
+            this.isSpeaking = true;
+            this.uiService.updateButtonStates(false, false, true);
+
+            // Intentar reproducir la voz y loggear todo el proceso
+            console.log("Reproduciendo mensaje de bienvenida en voz alta");
+            await this.speechService.speak(welcomeMessage);
+            console.log("Mensaje de bienvenida reproducido correctamente");
+          } catch (error) {
+            console.error("Error al sintetizar voz de bienvenida:", error);
+          } finally {
+            // Asegurarnos de restablecer el estado correcto
+            this.isSpeaking = false;
+            this.uiService.showSilentScooby();
+            this.uiService.updateButtonStates(false, false, false);
+            console.log("Finalizada síntesis de voz de bienvenida");
+          }
+        } else {
+          console.error("El servicio de voz no está disponible");
+        }
       }, 1000);
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
@@ -87,10 +134,43 @@ class ScoobyApp {
    */
   reinitWelcomeMessage() {
     // Añadir mensaje de bienvenida de Scooby después de limpiar el chat
-    setTimeout(() => {
-      this.uiService.addSystemMessage(
-        "¡Ruf-ruf! ¡Chat limpio y listo para nuevas aventuras! ¿Quieres contarme algo nuevo o preguntar sobre algún tema interesante?"
-      );
+    setTimeout(async () => {
+      const welcomeMessage =
+        "¡Ruf-ruf! ¡Chat limpio y listo para nuevas aventuras! ¿Quieres contarme algo nuevo o preguntar sobre algún tema interesante?";
+
+      // Mostrar el mensaje en la UI
+      this.uiService.addSystemMessage(welcomeMessage);
+
+      // Leer el mensaje en voz alta
+      console.log("INICIANDO SÍNTESIS DE VOZ TRAS LIMPIAR CHAT");
+      if (this.speechService) {
+        try {
+          // Mostrar el Scooby hablando visualmente
+          this.uiService.showSpeakingScooby();
+          this.isSpeaking = true;
+          this.uiService.updateButtonStates(false, false, true);
+
+          // Intentar reproducir la voz
+          console.log("Reproduciendo mensaje después de limpiar chat");
+          await this.speechService.speak(welcomeMessage);
+          console.log("Mensaje post-limpieza reproducido correctamente");
+        } catch (error) {
+          console.error(
+            "Error al sintetizar voz después de limpiar chat:",
+            error
+          );
+        } finally {
+          // Asegurarnos de restablecer el estado correcto
+          this.isSpeaking = false;
+          this.uiService.showSilentScooby();
+          this.uiService.updateButtonStates(false, false, false);
+          console.log("Finalizada síntesis de voz post-limpieza");
+        }
+      } else {
+        console.error(
+          "El servicio de voz no está disponible para mensaje post-limpieza"
+        );
+      }
     }, 1000);
   }
 
@@ -284,13 +364,33 @@ class ScoobyApp {
 
         // Sintetizar voz si está disponible
         if (this.speechService) {
-          this.uiService.showSpeakingScooby();
-          this.isSpeaking = true;
-          this.uiService.updateButtonStates(false, false, true);
-          await this.speechService.speak(response);
-          this.isSpeaking = false;
-          this.uiService.showSilentScooby();
-          this.uiService.updateButtonStates(false, false, false);
+          console.log("INICIANDO SÍNTESIS DE VOZ PARA RESPUESTA");
+          try {
+            // Mostrar el Scooby hablando visualmente
+            this.uiService.showSpeakingScooby();
+            this.isSpeaking = true;
+            this.uiService.updateButtonStates(false, false, true);
+
+            // Intentar reproducir la voz y loggear todo el proceso
+            console.log(
+              "Reproduciendo respuesta en voz alta:",
+              response.substring(0, 50) + "..."
+            );
+            await this.speechService.speak(response);
+            console.log("Respuesta reproducida correctamente");
+          } catch (error) {
+            console.error("Error al sintetizar voz de respuesta:", error);
+          } finally {
+            // Asegurarnos de restablecer el estado correcto
+            this.isSpeaking = false;
+            this.uiService.showSilentScooby();
+            this.uiService.updateButtonStates(false, false, false);
+            console.log("Finalizada síntesis de voz de respuesta");
+          }
+        } else {
+          console.error(
+            "El servicio de voz no está disponible para síntesis de respuesta"
+          );
         }
       } else {
         throw new Error("No se recibió respuesta del modelo");
@@ -302,7 +402,6 @@ class ScoobyApp {
     } finally {
       // Actualizar estado
       this.isProcessing = false;
-      this.isSpeaking = false;
       this.uiService.updateButtonStates(false, false, false);
     }
   }
@@ -355,13 +454,33 @@ class ScoobyApp {
 
         // Sintetizar voz si está disponible
         if (this.speechService) {
-          this.uiService.showSpeakingScooby();
-          this.isSpeaking = true;
-          this.uiService.updateButtonStates(false, false, true);
-          await this.speechService.speak(response);
-          this.isSpeaking = false;
-          this.uiService.showSilentScooby();
-          this.uiService.updateButtonStates(false, false, false);
+          console.log("INICIANDO SÍNTESIS DE VOZ PARA CONTINUACIÓN");
+          try {
+            // Mostrar el Scooby hablando visualmente
+            this.uiService.showSpeakingScooby();
+            this.isSpeaking = true;
+            this.uiService.updateButtonStates(false, false, true);
+
+            // Intentar reproducir la voz y loggear todo el proceso
+            console.log(
+              "Reproduciendo continuación en voz alta:",
+              response.substring(0, 50) + "..."
+            );
+            await this.speechService.speak(response);
+            console.log("Continuación reproducida correctamente");
+          } catch (error) {
+            console.error("Error al sintetizar voz de continuación:", error);
+          } finally {
+            // Asegurarnos de restablecer el estado correcto
+            this.isSpeaking = false;
+            this.uiService.showSilentScooby();
+            this.uiService.updateButtonStates(false, false, false);
+            console.log("Finalizada síntesis de voz de continuación");
+          }
+        } else {
+          console.error(
+            "El servicio de voz no está disponible para síntesis de continuación"
+          );
         }
       } else {
         throw new Error("No se recibió respuesta del modelo");

@@ -349,18 +349,74 @@ export class UIService {
 
   showSpeakingScooby() {
     if (this.scoobySilent && this.scoobyTalking) {
-      this.scoobySilent.classList.add("d-none");
-      this.scoobyTalking.classList.remove("d-none");
-      this.scoobyTalking.play();
+      console.log("Mostrando Scooby hablando");
+
+      try {
+        // Primero pausamos el video silencioso
+        this.scoobySilent.pause();
+        this.scoobySilent.classList.add("d-none");
+
+        // Luego mostramos y reproducimos el video hablando
+        this.scoobyTalking.classList.remove("d-none");
+
+        // Asegurar que el video se reproduce desde el principio
+        this.scoobyTalking.currentTime = 0;
+
+        // Crear una promesa para manejar la reproducción
+        const playPromise = this.scoobyTalking.play();
+
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error(
+              "Error al reproducir video de Scooby hablando:",
+              error
+            );
+            // En caso de error, mostrar al menos el Scooby silencioso
+            this.showSilentScooby();
+          });
+        }
+      } catch (error) {
+        console.error("Error al mostrar Scooby hablando:", error);
+        // En caso de error, intentar mostrar el Scooby silencioso
+        this.scoobySilent.classList.remove("d-none");
+        this.scoobyTalking.classList.add("d-none");
+      }
+    } else {
+      console.warn("No se pueden encontrar los elementos de video de Scooby");
     }
   }
 
   showSilentScooby() {
     if (this.scoobySilent && this.scoobyTalking) {
-      this.scoobySilent.classList.remove("d-none");
-      this.scoobyTalking.classList.add("d-none");
-      this.scoobyTalking.pause();
-      this.scoobySilent.play();
+      console.log("Mostrando Scooby callado");
+
+      try {
+        // Primero pausamos el video hablando
+        this.scoobyTalking.pause();
+        this.scoobyTalking.classList.add("d-none");
+
+        // Luego mostramos y reproducimos el video silencioso
+        this.scoobySilent.classList.remove("d-none");
+
+        // Asegurar que el video se reproduce desde el principio
+        this.scoobySilent.currentTime = 0;
+
+        // Crear una promesa para manejar la reproducción
+        const playPromise = this.scoobySilent.play();
+
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error(
+              "Error al reproducir video de Scooby callado:",
+              error
+            );
+          });
+        }
+      } catch (error) {
+        console.error("Error al mostrar Scooby callado:", error);
+      }
+    } else {
+      console.warn("No se pueden encontrar los elementos de video de Scooby");
     }
   }
 

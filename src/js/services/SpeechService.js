@@ -217,26 +217,88 @@ class SpeechService {
 
   async speak(text) {
     if (this.isSpeaking) {
+      console.log("Ya hay una síntesis en curso, deteniéndola primero");
       this.stopSpeaking();
+      // Esperar un momento para asegurar que se ha detenido
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
-    if (!text || !text.trim()) return;
+    if (!text || !text.trim()) {
+      console.warn("Texto vacío para sintetizar, ignorando");
+      return;
+    }
 
     try {
-      const cleanText = text.replace(/\b(https?:\/\/\S+)\b/gi, "").trim();
+      // Limpiar el texto para mejorar la síntesis
+      const cleanText = text
+        .replace(/\b(https?:\/\/\S+)\b/gi, "") // Eliminar URLs
+        .replace(/([!.?])\s*\1+/g, "$1") // Reducir signos de puntuación repetidos
+        .trim();
+
+      console.log(
+        "Iniciando síntesis de voz con texto:",
+        cleanText.substring(0, 50) + "...",
+        "Longitud del texto:",
+        cleanText.length
+      );
+
+      // Asegurarnos de que la síntesis está disponible
+      if (!this.synthesis) {
+        console.error("SpeechSynthesis no está disponible en este navegador");
+        throw new Error("Síntesis de voz no disponible");
+      }
+
+      // Verificar si hay un estado pendiente (podría bloquear nuevas pronunciaciones)
+      if (this.synthesis.speaking || this.synthesis.pending) {
+        console.log("Hay síntesis pendiente o en progreso, limpiando...");
+        this.synthesis.cancel();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
 
+      // Establecer voz en español si está disponible
       if (this.selectedVoice) {
+        console.log("Usando voz seleccionada:", this.selectedVoice.name);
         utterance.voice = this.selectedVoice;
+      } else {
+        console.log("Buscando voz en español disponible...");
+        // Intentar encontrar una voz en español si no se ha configurado previamente
+        const voices = this.synthesis.getVoices();
+        console.log("Voces disponibles:", voices.length);
+
+        const spanishVoice = voices.find(
+          (voice) => voice.lang.includes("es") || voice.name.includes("Spanish")
+        );
+
+        if (spanishVoice) {
+          console.log("Voz en español encontrada:", spanishVoice.name);
+          utterance.voice = spanishVoice;
+          this.selectedVoice = spanishVoice; // Guardar para uso futuro
+        } else {
+          console.warn(
+            "No se encontró voz en español, usando la predeterminada"
+          );
+        }
       }
 
-      utterance.rate = 0.9;
-      utterance.pitch = 1.1;
-      utterance.volume = 1.0;
+      // Configurar propiedades de voz para Scooby
+      utterance.rate = 0.9; // Un poco más lento para que sea claro
+      utterance.pitch = 1.1; // Tono un poco más alto para Scooby
+      utterance.volume = 1.0; // Volumen al máximo
+      utterance.lang = "es-ES"; // Forzar idioma español
 
+      console.log("Configuración de síntesis:", {
+        voice: utterance.voice ? utterance.voice.name : "predeterminada",
+        rate: utterance.rate,
+        pitch: utterance.pitch,
+        volume: utterance.volume,
+        lang: utterance.lang,
+      });
+
+      // Manejar eventos de la síntesis
       utterance.onstart = () => {
-        console.log("Iniciando síntesis de voz");
+        console.log("Síntesis de voz iniciada");
         this.isSpeaking = true;
         if (typeof this.onSpeakStart === "function") {
           this.onSpeakStart();
@@ -244,7 +306,7 @@ class SpeechService {
       };
 
       utterance.onend = () => {
-        console.log("Síntesis de voz finalizada");
+        console.log("Síntesis de voz finalizada correctamente");
         this.isSpeaking = false;
         if (typeof this.onSpeakEnd === "function") {
           this.onSpeakEnd();
@@ -259,10 +321,22 @@ class SpeechService {
         }
       };
 
+      // Comprobar si el audio está permitido (puede causar problemas en Chrome)
+      if (!document.body.classList.contains("user-interaction")) {
+        console.log(
+          "Añadiendo clase de interacción de usuario para permitir audio"
+        );
+        document.body.classList.add("user-interaction");
+      }
+
+      // Iniciar síntesis
+      console.log("Ejecutando speechSynthesis.speak()");
       this.synthesis.speak(utterance);
 
+      // Esperar a que termine (Promise)
       return new Promise((resolve) => {
         utterance.onend = () => {
+          console.log("Promesa de síntesis resuelta (onend)");
           this.isSpeaking = false;
           if (typeof this.onSpeakEnd === "function") {
             this.onSpeakEnd();
@@ -270,13 +344,26 @@ class SpeechService {
           resolve();
         };
 
-        utterance.onerror = () => {
+        utterance.onerror = (err) => {
+          console.error("Promesa de síntesis resuelta (onerror):", err);
           this.isSpeaking = false;
           if (typeof this.onSpeakEnd === "function") {
             this.onSpeakEnd();
           }
           resolve();
         };
+
+        // Seguridad: resolver después de un tiempo máximo
+        setTimeout(() => {
+          if (this.isSpeaking) {
+            console.warn("Tiempo máximo de síntesis alcanzado, finalizando");
+            this.isSpeaking = false;
+            if (typeof this.onSpeakEnd === "function") {
+              this.onSpeakEnd();
+            }
+            resolve();
+          }
+        }, cleanText.length * 50); // Tiempo máximo basado en la longitud del texto
       });
     } catch (error) {
       console.error("Error al sintetizar voz:", error);
