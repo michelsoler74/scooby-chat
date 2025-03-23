@@ -55,7 +55,7 @@ class ScoobyApp {
       await this.llmService.checkConnection();
       this.uiService.addMessage(
         "Sistema",
-        "✅ Conectado al modelo Mixtral-8x7B correctamente"
+        "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
