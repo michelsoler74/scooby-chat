@@ -7,7 +7,7 @@ class HuggingFaceService {
   constructor() {
     // Asegurarnos que usamos el modelo 2b
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b";
+      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b-instruct";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -45,11 +45,18 @@ Instrucciones para responder:
         );
       }
 
+      // Verificar formato del API key
+      if (!/^hf_[a-zA-Z0-9]+$/.test(this.apiKey)) {
+        throw new Error(
+          "El formato de la API key no es válido. Debe comenzar con 'hf_' seguido de caracteres alfanuméricos"
+        );
+      }
+
       const testMessage = "Test connection";
       console.log("Enviando mensaje de prueba a Hugging Face...");
 
       const requestData = {
-        inputs: this.systemPrompt + "\n\n" + testMessage,
+        inputs: testMessage,
         parameters: {
           max_new_tokens: 250,
           temperature: 0.7,
@@ -77,12 +84,24 @@ Instrucciones para responder:
       console.log("Respuesta completa del servidor:", responseText);
 
       if (!response.ok) {
-        let errorMessage = "Error desconocido al conectar con Hugging Face";
+        let errorMessage = "Error al conectar con Hugging Face: ";
         try {
           const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
+          if (response.status === 401) {
+            errorMessage += "API key no válida o sin permisos suficientes";
+          } else if (response.status === 503) {
+            errorMessage +=
+              "El modelo está cargando, por favor espera unos momentos";
+          } else {
+            errorMessage += errorData.error || "Error desconocido";
+          }
         } catch (e) {
-          errorMessage = responseText || errorMessage;
+          if (responseText.includes("Failed to fetch")) {
+            errorMessage +=
+              "No se pudo conectar con el servidor. Verifica tu conexión a internet";
+          } else {
+            errorMessage += responseText || "Error desconocido";
+          }
         }
         throw new Error(errorMessage);
       }
@@ -149,12 +168,24 @@ Instrucciones para responder:
       console.log("Respuesta completa del servidor:", responseText);
 
       if (!response.ok) {
-        let errorMessage = "Error desconocido al procesar el mensaje";
+        let errorMessage = "Error al procesar el mensaje: ";
         try {
           const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
+          if (response.status === 401) {
+            errorMessage += "API key no válida o sin permisos suficientes";
+          } else if (response.status === 503) {
+            errorMessage +=
+              "El modelo está cargando, por favor espera unos momentos";
+          } else {
+            errorMessage += errorData.error || "Error desconocido";
+          }
         } catch (e) {
-          errorMessage = responseText || errorMessage;
+          if (responseText.includes("Failed to fetch")) {
+            errorMessage +=
+              "No se pudo conectar con el servidor. Verifica tu conexión a internet";
+          } else {
+            errorMessage += responseText || "Error desconocido";
+          }
         }
         throw new Error(errorMessage);
       }
