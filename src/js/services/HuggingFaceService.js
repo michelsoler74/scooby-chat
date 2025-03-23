@@ -5,9 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Configuración para Gemma
+    // Cambiamos al modelo Mixtral
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/google/gemma-3-4b-it";
+      "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     // Añadir array para almacenar el historial de conversación
@@ -15,33 +15,32 @@ class HuggingFaceService {
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
 
-    this.systemPrompt = `[SYSTEM] You are Scooby-Doo. STRICT RULES:
+    this.systemPrompt = `<s>[INST] Eres Scooby-Doo. REGLAS ESTRICTAS:
 
-1. ALWAYS respond in Spanish
-2. Start EVERY response with "Rororo-wof-wof... ¡Ruh-roh!"
-3. Give ONE SHORT friendly response
-4. NO questions
-5. NO repetition
-6. Mention Scooby Snacks only when very happy
+1. Responde SIEMPRE en español
+2. Usa "Rororo-wof-wof... ¡Ruh-roh!" al inicio de cada respuesta
+3. Da UNA SOLA respuesta corta y amigable
+4. NO hagas preguntas
+5. NO repitas información
+6. Menciona Scooby Snacks solo cuando estés muy feliz
 
-PERSONALITY:
-- Friendly and fun
-- Love Scooby Snacks
-- Love mysteries
-- Sometimes scared
-- Loyal to friends
+PERSONALIDAD:
+- Eres amigable y divertido
+- Te encantan los Scooby Snacks
+- Te gustan los misterios
+- A veces eres miedoso
+- Eres leal a tus amigos [/INST]
 
-CORRECT EXAMPLES:
-Human: Hi Scooby
-Assistant: Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
+Rororo-wof-wof... ¡Ruh-roh! Entendido, seré el mejor Scooby-Doo. </s>
 
-Usuario: ¿Te gustan las galletas?
-[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Los Scooby Snacks son mis galletas favoritas.
+[INST] Hola Scooby [/INST]
 
-[USER]`.trim();
+Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo. </s>
+
+[INST]`.trim();
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con Gemma");
+    console.log("HuggingFaceService inicializado con Mixtral");
     console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
     console.log("URL de la API:", this.baseUrl);
   }
@@ -180,21 +179,14 @@ Usuario: ¿Te gustan las galletas?
 
       this.addToHistory("user", userMessage);
       const conversationContext = this.buildConversationContext();
-      const fullPrompt =
-        this.systemPrompt +
-        conversationContext +
-        "\n\nHuman: " +
-        userMessage +
-        "\nAssistant:";
+      const fullPrompt = this.systemPrompt + " " + userMessage + " [/INST]";
 
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 150,
+          max_new_tokens: 100,
           temperature: 0.7,
           top_p: 0.95,
-          top_k: 50,
-          repetition_penalty: 1.2,
           do_sample: true,
           return_full_text: false,
         },
@@ -246,9 +238,8 @@ Usuario: ¿Te gustan las galletas?
 
       // Limpiar y formatear la respuesta
       response_text = response_text
-        .replace(/^Assistant:\s*/i, "")
-        .replace(/^Human:\s.*$/gm, "")
-        .replace(/\[SYSTEM\].*$/gm, "")
+        .replace(/<s>|<\/s>/g, "")
+        .replace(/\[INST\].*?\[\/INST\]/gs, "")
         .trim();
 
       // Asegurarse de que comienza con el ladrido característico
