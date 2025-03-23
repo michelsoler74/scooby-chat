@@ -11,20 +11,23 @@ class HuggingFaceService {
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
-      `Eres Scooby-Doo, el famoso perro detective de Misterios S.A. Tu personalidad:
-- Eres inteligente y leal, aunque algo miedoso cuando hay fantasmas
-- Te encanta resolver misterios junto con tus amigos
-- Tienes un gran corazón y siempre ayudas a quien lo necesita
-- Tu comida favorita son los Scooby Snacks
-- Usas expresiones como "¡Ruh-roh!" cuando algo te sorprende
-- Hablas de manera característica, a veces repitiendo la "R" al inicio de algunas palabras
+      `[SYSTEM] Eres Scooby-Doo, el famoso perro detective. Responde como el personaje:
+- Usa un tono amigable y divertido
+- Di "¡Ruh-roh!" cuando algo te sorprende
+- Menciona los Scooby Snacks cuando estés contento
+- Repite la "R" al inicio de algunas palabras
+- Mantén las respuestas cortas y concisas
+- No repitas la misma frase varias veces
 
-Instrucciones para responder:
-1. Da respuestas completas y con contexto suficiente para ser entendidas
-2. Mantén un tono amigable y divertido, propio de Scooby
-3. Si te preguntan sobre un tema complejo, explícalo de forma simple
-4. Usa tu personalidad característica en las respuestas
-5. Si no entiendes algo, pide que te lo aclaren`.trim();
+[USER] Hola Scooby, ¿cómo estás?
+
+[ASSISTANT] ¡R-ruh-roh! ¡Hola amigo! Estoy muy contento de verte. ¿Me darías algunos Scooby Snacks?
+
+[USER] ¿Te gustan los misterios?
+
+[ASSISTANT] ¡R-realmente me encantan los misterios! Aunque a veces dan un poco de miedo, con mis amigos y algunos Scooby Snacks siempre logramos resolverlos.
+
+[USER]`.trim();
 
     // Log inicial para verificar la configuración
     console.log("HuggingFaceService inicializado");
@@ -52,13 +55,13 @@ Instrucciones para responder:
         );
       }
 
-      const testMessage = "Test connection";
+      const testMessage = "Hola Scooby";
       console.log("Enviando mensaje de prueba a Hugging Face...");
 
       const requestData = {
-        inputs: testMessage,
+        inputs: this.systemPrompt + "\n" + testMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 250,
+          max_new_tokens: 100,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -139,9 +142,9 @@ Instrucciones para responder:
       }
 
       const requestData = {
-        inputs: this.systemPrompt + "\n\n" + userMessage,
+        inputs: this.systemPrompt + "\n" + userMessage + "\n\n[ASSISTANT]",
         parameters: {
-          max_new_tokens: 250,
+          max_new_tokens: 100,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -193,16 +196,33 @@ Instrucciones para responder:
       const data = JSON.parse(responseText);
       console.log("Respuesta recibida de Hugging Face:", data);
 
-      // La respuesta de este modelo viene en un formato diferente
+      // Procesar la respuesta
+      let response_text = "";
       if (Array.isArray(data) && data.length > 0) {
-        return data[0].generated_text.replace(this.systemPrompt, "").trim();
+        response_text = data[0].generated_text;
       } else if (typeof data === "string") {
-        return data.replace(this.systemPrompt, "").trim();
+        response_text = data;
       } else {
         throw new Error(
           "Respuesta inválida de Hugging Face: formato de respuesta incorrecto"
         );
       }
+
+      // Limpiar la respuesta
+      response_text = response_text
+        .replace(this.systemPrompt, "")
+        .replace(userMessage, "")
+        .replace("[ASSISTANT]", "")
+        .replace(/\[USER\]/g, "")
+        .replace(/\[SYSTEM\]/g, "")
+        .trim();
+
+      // Evitar respuestas muy largas o repetitivas
+      if (response_text.length > 200) {
+        response_text = response_text.substring(0, 200) + "...";
+      }
+
+      return response_text;
     } catch (error) {
       console.error("Error completo en getResponse:", {
         message: error.message,
