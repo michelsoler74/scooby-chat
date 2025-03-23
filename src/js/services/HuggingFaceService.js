@@ -104,7 +104,7 @@ Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
         body: JSON.stringify({
           inputs: "Test connection",
           parameters: {
-            max_length: 10,
+            max_tokens: 10,
             temperature: 0.1,
           },
         }),
@@ -173,11 +173,10 @@ ${userMessage}
         body: JSON.stringify({
           inputs: fullPrompt,
           parameters: {
-            max_new_tokens: 150,
+            max_tokens: 150,
             temperature: 0.7,
             top_p: 0.95,
-            return_full_text: false,
-            repetition_penalty: 1.2,
+            do_sample: true,
           },
         }),
       });
