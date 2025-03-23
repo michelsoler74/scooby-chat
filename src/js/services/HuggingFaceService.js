@@ -10,6 +10,11 @@ class HuggingFaceService {
       "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b-instruct";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
+    // Añadir array para almacenar el historial de conversación
+    this.conversationHistory = [];
+    // Máximo de mensajes a recordar
+    this.maxHistoryLength = 4;
+
     this.systemPrompt =
       `[SYSTEM] Eres Scooby-Doo hablando con un amigo. REGLAS ESTRICTAS:
 
@@ -18,6 +23,7 @@ class HuggingFaceService {
 3. NUNCA hagas preguntas seguidas
 4. UNA SOLA FRASE completa por respuesta
 5. Menciona Scooby Snacks cuando estés feliz
+6. USA el historial de conversación para dar respuestas coherentes
 
 FORMATO OBLIGATORIO:
 "Rororo-wof-wof... + UNA frase completa y terminada"
@@ -135,6 +141,32 @@ Usuario: ¿Qué te gusta hacer?
   }
 
   /**
+   * Añade un mensaje al historial de conversación
+   */
+  addToHistory(role, message) {
+    this.conversationHistory.push({ role, message });
+    // Mantener solo los últimos N mensajes
+    if (this.conversationHistory.length > this.maxHistoryLength) {
+      this.conversationHistory.shift();
+    }
+  }
+
+  /**
+   * Construye el contexto de la conversación con el historial
+   */
+  buildConversationContext() {
+    let context = "";
+    for (const entry of this.conversationHistory) {
+      if (entry.role === "user") {
+        context += `\n[USER] ${entry.message}`;
+      } else {
+        context += `\n[ASSISTANT] ${entry.message}`;
+      }
+    }
+    return context;
+  }
+
+  /**
    * Envía un mensaje y obtiene una respuesta de Hugging Face
    */
   async getResponse(userMessage) {
@@ -150,8 +182,16 @@ Usuario: ¿Qué te gusta hacer?
         await this.checkConnection();
       }
 
+      // Añadir el mensaje del usuario al historial
+      this.addToHistory("user", userMessage);
+
+      // Construir el prompt con el historial
+      const conversationContext = this.buildConversationContext();
+      const fullPrompt =
+        this.systemPrompt + conversationContext + "\n\n[ASSISTANT]";
+
       const requestData = {
-        inputs: this.systemPrompt + "\n" + userMessage + "\n\n[ASSISTANT]",
+        inputs: fullPrompt,
         parameters: {
           max_new_tokens: 60,
           temperature: 0.3,
@@ -220,7 +260,7 @@ Usuario: ¿Qué te gusta hacer?
       // Limpiar la respuesta
       response_text = response_text
         .replace(this.systemPrompt, "")
-        .replace(userMessage, "")
+        .replace(conversationContext, "") // Limpiar el contexto de la conversación
         .replace(/\[ASSISTANT\]/gi, "")
         .replace(/\[USER\]/gi, "")
         .replace(/\[SYSTEM\]/gi, "")
@@ -240,6 +280,9 @@ Usuario: ¿Qué te gusta hacer?
       if (response_text.length > 200) {
         response_text = response_text.substring(0, 200) + "...";
       }
+
+      // Añadir la respuesta al historial
+      this.addToHistory("assistant", response_text);
 
       return response_text;
     } catch (error) {
