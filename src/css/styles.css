@@ -1,19 +1,18 @@
 /* General Styles */
 body {
   min-height: 100vh;
-  background-color: #f8f9fa;
-  overflow-x: hidden;
   margin: 0;
   padding: 0;
+  background-color: #f0f2f5;
+  overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
 
 .container-fluid {
-  padding: 0;
-  height: 100vh;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 
 /* Header */
@@ -21,7 +20,7 @@ header {
   padding: 1rem;
   background-color: #fff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  text-align: center;
 }
 
 header h1 {
@@ -35,10 +34,9 @@ main {
   flex: 1;
   display: flex;
   flex-direction: row;
-  padding: 1rem;
   gap: 2rem;
+  padding: 1rem;
   height: calc(100vh - 80px);
-  align-items: stretch;
 }
 
 /* Chat Section */
@@ -47,6 +45,7 @@ main {
   display: flex;
   flex-direction: column;
   min-width: 300px;
+  max-height: calc(100vh - 100px);
 }
 
 /* Video Section */
@@ -55,19 +54,18 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
 }
 
 /* Conversation Area */
 #conversation {
   flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
   background-color: white;
   border-radius: 10px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  overflow-y: auto;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: calc(100vh - 350px);
+  margin-bottom: 1rem;
+  max-height: calc(100vh - 250px);
 }
 
 .mensaje {
@@ -77,6 +75,14 @@ main {
   max-width: 85%;
 }
 
+.user-message,
+.system-message {
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 15px;
+  max-width: 80%;
+}
+
 .user-message {
   background-color: #e3f2fd;
   margin-left: auto;
@@ -84,11 +90,16 @@ main {
 
 .system-message {
   background-color: #f5f5f5;
+  margin-right: auto;
 }
 
 /* Input Area */
 .input-area {
   margin-top: auto;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .input-group {
@@ -96,9 +107,8 @@ main {
 }
 
 .form-control {
-  border-radius: 20px 0 0 20px !important;
-  padding: 0.75rem 1rem !important;
-  border: 2px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
 }
 
 .input-group .btn {
@@ -116,20 +126,13 @@ main {
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
   border-radius: 20px;
-  font-weight: 500;
-  transition: all 0.2s ease;
 }
 
 /* Video Container */
 .video-container {
-  width: 100%;
   max-width: 500px;
-  margin: 0 auto;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .video-container video {
@@ -157,34 +160,37 @@ main {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  body {
-    height: auto;
-  }
-
   main {
-    flex-direction: column-reverse;
+    flex-direction: column;
     height: auto;
     padding: 0.5rem;
   }
 
   .chat-section {
-    flex: 1;
-    width: 100%;
+    flex: none;
+    height: 50vh;
+    min-width: unset;
+    order: 2;
   }
 
   .video-section {
     flex: none;
-    width: 100%;
+    height: 40vh;
+    order: 1;
   }
 
   #conversation {
-    height: calc(100vh - 450px);
+    max-height: calc(50vh - 150px);
     margin-bottom: 0.5rem;
   }
 
+  .input-area {
+    padding: 0.5rem;
+  }
+
   .video-container {
-    max-width: 200px;
-    margin: 1rem auto;
+    max-width: 100%;
+    height: 100%;
   }
 
   .buttons-container {
@@ -216,8 +222,16 @@ main {
 }
 
 @media (max-width: 480px) {
+  .chat-section {
+    height: 45vh;
+  }
+
+  .video-section {
+    height: 35vh;
+  }
+
   #conversation {
-    height: calc(100vh - 500px);
+    max-height: calc(45vh - 120px);
   }
 
   .video-container {
@@ -235,28 +249,26 @@ main {
 }
 
 /* Utility Classes */
-.d-none {
+.hidden {
   display: none !important;
 }
 
 .text-muted {
-  color: #6c757d !important;
+  color: #6c757d;
 }
 
 /* Animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .mensaje {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.3s ease-in;
 }
 
 /* Estilos para mensajes de error y advertencia */

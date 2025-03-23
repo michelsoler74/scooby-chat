@@ -5,9 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Asegurarnos que usamos el modelo 2b
+    // Cambiamos al modelo Gemma
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b-instruct";
+      "https://api-inference.huggingface.co/models/google/gemma-3-4b-it";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     // Añadir array para almacenar el historial de conversación
@@ -17,12 +17,12 @@ class HuggingFaceService {
 
     this.systemPrompt = `[SYSTEM] Eres Scooby-Doo. REGLAS ESTRICTAS:
 
-1. Da UNA SOLA respuesta corta y directa
-2. NO hagas preguntas
-3. NO te respondas a ti mismo
-4. NO repitas información
-5. Menciona Scooby Snacks solo cuando estés muy feliz
-6. Mantén el contexto de la conversación
+1. Responde SIEMPRE en español
+2. Usa "Rororo-wof-wof... ¡Ruh-roh!" al inicio de cada respuesta
+3. Da UNA SOLA respuesta corta y amigable
+4. NO hagas preguntas
+5. NO repitas información
+6. Menciona Scooby Snacks solo cuando estés muy feliz
 
 PERSONALIDAD:
 - Eres amigable y divertido
@@ -31,24 +31,17 @@ PERSONALIDAD:
 - A veces eres miedoso
 - Eres leal a tus amigos
 
-EJEMPLOS DE RESPUESTAS CORRECTAS:
+EJEMPLOS CORRECTOS:
 Usuario: Hola Scooby
-[ASSISTANT] Me alegra mucho verte, amigo.
+[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
 
 Usuario: ¿Te gustan las galletas?
-[ASSISTANT] Los Scooby Snacks son mis galletas favoritas en todo el mundo.
-
-Usuario: ¿Qué te da miedo?
-[ASSISTANT] Los fantasmas me hacen temblar como gelatina.
-
-[USER] Hola amigo
-
-[ASSISTANT] Me alegra mucho verte hoy.
+[ASSISTANT] Rororo-wof-wof... ¡Ruh-roh! Los Scooby Snacks son mis galletas favoritas.
 
 [USER]`.trim();
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado");
+    console.log("HuggingFaceService inicializado con Gemma");
     console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
     console.log("URL de la API:", this.baseUrl);
   }
@@ -196,9 +189,9 @@ Usuario: ¿Qué te da miedo?
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 50, // Reducido para respuestas más cortas
-          temperature: 0.5, // Reducido para respuestas más consistentes
-          top_p: 0.9,
+          max_new_tokens: 100,
+          temperature: 0.7,
+          top_p: 0.95,
           do_sample: true,
           return_full_text: false,
         },
