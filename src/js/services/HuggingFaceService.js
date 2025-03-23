@@ -5,17 +5,30 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiamos al modelo BlenderBot
+    // URL base de la API con proxy CORS
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill";
+      "https://cors-anywhere.herokuapp.com/https://api-inference.huggingface.co/models/google/gemma-3-4b-it".replace(
+        /\s/g,
+        ""
+      );
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     // Añadir array para almacenar el historial de conversación
     this.conversationHistory = [];
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
+    this.retryAttempts = 3;
+    this.retryDelay = 1000; // 1 segundo
 
-    this.systemPrompt = `System: You are Scooby-Doo. STRICT RULES:
+    // Verificar la API key al inicio
+    if (!this.apiKey) {
+      console.error("API key no encontrada");
+    } else {
+      console.log("API key encontrada:", this.apiKey.substring(0, 5) + "...");
+    }
+
+    this.systemPrompt = `<start_of_turn>system
+You are Scooby-Doo. STRICT RULES:
 1. ALWAYS respond in Spanish
 2. Start EVERY response with "Rororo-wof-wof... ¡Ruh-roh!"
 3. Give ONE SHORT friendly response
@@ -29,16 +42,48 @@ PERSONALITY:
 - Love mysteries
 - Sometimes scared
 - Loyal to friends
-
-<|human|>Hola Scooby<|endoftext|>
-<|assistant|>Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.<|endoftext|>
-
-<|human|>`.trim();
+<end_of_turn>
+<start_of_turn>user
+Hola Scooby
+<end_of_turn>
+<start_of_turn>assistant
+Rororo-wof-wof... ¡Ruh-roh! Me alegra mucho verte, amigo.
+<end_of_turn>
+<start_of_turn>user`.trim();
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con BlenderBot");
-    console.log("API Key configurada:", this.apiKey ? "Sí" : "No");
+    console.log("HuggingFaceService inicializado con Gemma 3-4B");
     console.log("URL de la API:", this.baseUrl);
+  }
+
+  async delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async fetchWithRetry(url, options, attempts = this.retryAttempts) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          mode: "cors",
+          headers: {
+            ...options.headers,
+            Origin: window.location.origin,
+          },
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Error ${response.status}: ${text}`);
+        }
+
+        return response;
+      } catch (error) {
+        console.warn(`Intento ${i + 1} fallido:`, error);
+        if (i === attempts - 1) throw error;
+        await this.delay(this.retryDelay * (i + 1));
+      }
+    }
   }
 
   /**
@@ -46,87 +91,31 @@ PERSONALITY:
    */
   async checkConnection() {
     try {
-      console.log("Iniciando verificación de conexión con Hugging Face...");
-
       if (!this.apiKey) {
-        throw new Error(
-          "No se encontró una API key válida. Por favor, añade tu API key de Hugging Face usando ?hf_key=TU_API_KEY en la URL"
-        );
+        throw new Error("API key no proporcionada");
       }
 
-      // Verificar formato del API key
-      if (!/^hf_[a-zA-Z0-9]+$/.test(this.apiKey)) {
-        throw new Error(
-          "El formato de la API key no es válido. Debe comenzar con 'hf_' seguido de caracteres alfanuméricos"
-        );
-      }
-
-      const testMessage = "Hola Scooby";
-      console.log("Enviando mensaje de prueba a Hugging Face...");
-
-      const requestData = {
-        inputs: this.systemPrompt + "\n" + testMessage + "\n\n[ASSISTANT]",
-        parameters: {
-          max_new_tokens: 60,
-          temperature: 0.3,
-          top_p: 0.8,
-          do_sample: true,
-          return_full_text: false,
-        },
-      };
-
-      console.log(
-        "Datos de la solicitud:",
-        JSON.stringify(requestData, null, 2)
-      );
-
-      const response = await fetch(this.baseUrl, {
+      const response = await this.fetchWithRetry(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          inputs: "Test connection",
+          parameters: {
+            max_length: 10,
+            temperature: 0.1,
+          },
+        }),
       });
-
-      const responseText = await response.text();
-      console.log("Respuesta completa del servidor:", responseText);
-
-      if (!response.ok) {
-        let errorMessage = "Error al conectar con Hugging Face: ";
-        try {
-          const errorData = JSON.parse(responseText);
-          if (response.status === 401) {
-            errorMessage += "API key no válida o sin permisos suficientes";
-          } else if (response.status === 503) {
-            errorMessage +=
-              "El modelo está cargando, por favor espera unos momentos";
-          } else {
-            errorMessage += errorData.error || "Error desconocido";
-          }
-        } catch (e) {
-          if (responseText.includes("Failed to fetch")) {
-            errorMessage +=
-              "No se pudo conectar con el servidor. Verifica tu conexión a internet";
-          } else {
-            errorMessage += responseText || "Error desconocido";
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = JSON.parse(responseText);
-      console.log("Respuesta de prueba recibida:", data);
 
       this.isConnected = true;
-      console.log("Conexión con Hugging Face establecida correctamente");
+      console.log("Conexión establecida correctamente");
       return true;
     } catch (error) {
-      console.error("Error detallado de conexión:", {
-        message: error.message,
-        stack: error.stack,
-      });
       this.isConnected = false;
+      console.error("Error de conexión:", error);
       throw error;
     }
   }
@@ -162,82 +151,44 @@ PERSONALITY:
    */
   async getResponse(userMessage) {
     try {
-      console.log("Iniciando getResponse con mensaje:", userMessage);
-
       if (!this.apiKey) {
-        throw new Error("API key no válida o no proporcionada");
+        throw new Error("API key no proporcionada");
       }
 
-      if (!this.isConnected && userMessage !== "Test connection") {
-        console.log("No hay conexión establecida, intentando reconectar...");
+      if (!this.isConnected) {
         await this.checkConnection();
       }
 
-      this.addToHistory("user", userMessage);
-      const conversationContext = this.buildConversationContext();
-      const fullPrompt =
-        this.systemPrompt + "\nHuman: " + userMessage + "\nAssistant:";
+      const fullPrompt = `${this.systemPrompt}
+${userMessage}
+<end_of_turn>
+<start_of_turn>assistant`;
 
-      const requestData = {
-        inputs: fullPrompt,
-        parameters: {
-          max_length: 100,
-          temperature: 0.7,
-          top_p: 0.9,
-          do_sample: true,
-          return_full_text: false,
-        },
-      };
-
-      console.log("Enviando solicitud a Hugging Face...");
-
-      const response = await fetch(this.baseUrl, {
+      const response = await this.fetchWithRetry(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          inputs: fullPrompt,
+          parameters: {
+            max_new_tokens: 150,
+            temperature: 0.7,
+            top_p: 0.95,
+            return_full_text: false,
+            repetition_penalty: 1.2,
+          },
+        }),
       });
 
-      const responseText = await response.text();
-      console.log("Respuesta completa del servidor:", responseText);
-
-      if (!response.ok) {
-        let errorMessage = "Error al procesar el mensaje: ";
-        try {
-          const errorData = JSON.parse(responseText);
-          if (response.status === 401) {
-            errorMessage += "API key no válida o sin permisos suficientes";
-          } else if (response.status === 503) {
-            errorMessage +=
-              "El modelo está cargando, por favor espera unos momentos";
-          } else {
-            errorMessage += errorData.error || "Error desconocido";
-          }
-        } catch (e) {
-          errorMessage += responseText || "Error desconocido";
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = JSON.parse(responseText);
-      console.log("Respuesta recibida de Hugging Face:", data);
-
-      let response_text = "";
-      if (Array.isArray(data) && data.length > 0) {
-        response_text = data[0].generated_text;
-      } else if (typeof data === "string") {
-        response_text = data;
-      } else {
-        throw new Error("Formato de respuesta incorrecto");
-      }
+      const data = await response.json();
+      let response_text = Array.isArray(data) ? data[0].generated_text : data;
 
       // Limpiar y formatear la respuesta
       response_text = response_text
-        .replace(/System:.*?(?=\n|$)/gs, "")
-        .replace(/Human:.*?(?=\n|$)/gs, "")
-        .replace(/Assistant:/g, "")
+        .replace(/<end_of_turn>.*$/s, "")
+        .replace(/<start_of_turn>.*?$/s, "")
         .trim();
 
       // Asegurarse de que comienza con el ladrido característico
