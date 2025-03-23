@@ -59,10 +59,10 @@ class ScoobyApp {
         "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
 
-      // Añadir mensaje de bienvenida de Scooby
+      // Añadir mensaje de bienvenida de Scooby más corto y solicitando información
       setTimeout(() => {
         this.uiService.addSystemMessage(
-          "¡Yippie-yippie-yeeeaah! ¡Scooby-dooby-doo! ¡Hola amigo! ¡Qué alegría conocerte! Estoy listo para resolver misterios, hablar de aventuras o responder tus preguntas. ¡Las Scooby Galletas me dan super poderes para ayudarte!"
+          "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!"
         );
       }, 1000);
     } catch (error) {
@@ -81,7 +81,7 @@ class ScoobyApp {
     // Añadir mensaje de bienvenida de Scooby después de limpiar el chat
     setTimeout(() => {
       this.uiService.addSystemMessage(
-        "¡Ruf-ruf-ruuuf! ¡Ri-ri-riiiii! ¡Chat limpio y listo para nuevas aventuras! ¿De qué quieres hablar ahora? ¡Tengo muchas Scooby Galletas para compartir contigo!"
+        "¡Ruf-ruf! ¡Chat limpio y listo para nuevas aventuras! ¿Quieres contarme algo nuevo o preguntar sobre algún tema interesante?"
       );
     }, 1000);
   }

@@ -14,7 +14,35 @@
     <div class="container-fluid">
       <!-- Header -->
       <header>
-        <h1 class="text-center">Scooby - Tu Amigo Virtual</h1>
+        <div class="header-content">
+          <h1 class="text-center">Scooby - Tu Amigo Virtual</h1>
+          <button
+            id="help-toggle"
+            class="btn btn-sm btn-info help-toggle"
+            title="Consejos de uso"
+          >
+            <span>❓</span>
+          </button>
+
+          <!-- Tooltip de ayuda (inicialmente oculto) -->
+          <div id="mic-help-tooltip" class="mic-help-tooltip">
+            <h5 class="alert-heading">Consejos para usar el micrófono:</h5>
+            <ul class="mb-0">
+              <li>Habla fuerte y claro, cerca del micrófono</li>
+              <li>
+                Asegúrate que el volumen del micrófono esté al máximo en Windows
+              </li>
+              <li>
+                Si hay errores "no-speech", utiliza el modo de texto escribiendo
+                en el campo de entrada
+              </li>
+              <li>
+                Verifica que has dado permisos al navegador para usar el
+                micrófono
+              </li>
+            </ul>
+          </div>
+        </div>
       </header>
 
       <!-- Main Content -->
@@ -64,25 +92,6 @@
               >
             </div>
           </div>
-
-          <!-- Microphone Help Info -->
-          <div class="alert alert-info mic-help-info">
-            <h5 class="alert-heading">Consejos para usar el micrófono:</h5>
-            <ul class="mb-0">
-              <li>Habla fuerte y claro, cerca del micrófono</li>
-              <li>
-                Asegúrate que el volumen del micrófono esté al máximo en Windows
-              </li>
-              <li>
-                Si hay errores "no-speech", utiliza el modo de texto escribiendo
-                en el campo de entrada
-              </li>
-              <li>
-                Verifica que has dado permisos al navegador para usar el
-                micrófono
-              </li>
-            </ul>
-          </div>
         </div>
 
         <!-- Scooby Video Section -->
@@ -110,6 +119,25 @@
     <script>
       document.addEventListener("DOMContentLoaded", async () => {
         const micStatus = document.getElementById("mic-status");
+
+        // Configurar el tooltip de ayuda
+        const helpToggle = document.getElementById("help-toggle");
+        const micHelpTooltip = document.getElementById("mic-help-tooltip");
+
+        if (helpToggle && micHelpTooltip) {
+          helpToggle.addEventListener("mouseenter", () => {
+            micHelpTooltip.classList.add("show");
+          });
+
+          helpToggle.addEventListener("mouseleave", () => {
+            micHelpTooltip.classList.remove("show");
+          });
+
+          // También funciona con clic para dispositivos móviles
+          helpToggle.addEventListener("click", () => {
+            micHelpTooltip.classList.toggle("show-persistent");
+          });
+        }
 
         // Verificar soporte de SpeechRecognition
         const SpeechRecognition =
