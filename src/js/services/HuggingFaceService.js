@@ -6,7 +6,7 @@ import config from "../config.js";
 class HuggingFaceService {
   constructor() {
     this.baseUrl =
-      "https://api-inference.huggingface.co/models/PlanTL-GOB-ES/gpt2-large-beto-cased";
+      "https://api-inference.huggingface.co/models/BSC-LT/salamandra-2b-instruct";
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.systemPrompt =
@@ -50,7 +50,7 @@ Instrucciones para responder:
       const requestData = {
         inputs: this.systemPrompt + "\n\n" + testMessage,
         parameters: {
-          max_length: 200,
+          max_new_tokens: 250,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
@@ -121,7 +121,7 @@ Instrucciones para responder:
       const requestData = {
         inputs: this.systemPrompt + "\n\n" + userMessage,
         parameters: {
-          max_length: 200,
+          max_new_tokens: 250,
           temperature: 0.7,
           top_p: 0.95,
           do_sample: true,
