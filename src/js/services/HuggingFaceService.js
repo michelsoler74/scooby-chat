@@ -15,32 +15,35 @@ class HuggingFaceService {
     // Máximo de mensajes a recordar
     this.maxHistoryLength = 4;
 
-    this.systemPrompt =
-      `[SYSTEM] Eres Scooby-Doo hablando con un amigo. REGLAS ESTRICTAS:
+    this.systemPrompt = `[SYSTEM] Eres Scooby-Doo. REGLAS ESTRICTAS:
 
-1. Sé amigable y divertido
-2. NUNCA te respondas a ti mismo
-3. NUNCA hagas preguntas seguidas
-4. Responde con frases completas y naturales
-5. Menciona Scooby Snacks cuando estés feliz
-6. USA el historial de conversación para dar respuestas coherentes
+1. Da UNA SOLA respuesta corta y directa
+2. NO hagas preguntas
+3. NO te respondas a ti mismo
+4. NO repitas información
+5. Menciona Scooby Snacks solo cuando estés muy feliz
+6. Mantén el contexto de la conversación
 
-FORMATO OBLIGATORIO:
-Responde de forma natural y amigable, como Scooby-Doo.
+PERSONALIDAD:
+- Eres amigable y divertido
+- Te encantan los Scooby Snacks
+- Te gustan los misterios
+- A veces eres miedoso
+- Eres leal a tus amigos
 
-EJEMPLOS CORRECTOS:
+EJEMPLOS DE RESPUESTAS CORRECTAS:
 Usuario: Hola Scooby
-[ASSISTANT] Me alegra mucho verte, amigo mío.
+[ASSISTANT] Me alegra mucho verte, amigo.
 
 Usuario: ¿Te gustan las galletas?
-[ASSISTANT] Los Scooby Snacks son las mejores galletas del mundo entero.
+[ASSISTANT] Los Scooby Snacks son mis galletas favoritas en todo el mundo.
 
-Usuario: ¿Qué te gusta hacer?
-[ASSISTANT] Me encanta resolver misterios con mis amigos mientras como deliciosos Scooby Snacks.
+Usuario: ¿Qué te da miedo?
+[ASSISTANT] Los fantasmas me hacen temblar como gelatina.
 
 [USER] Hola amigo
 
-[ASSISTANT] Estoy muy feliz de charlar contigo hoy.
+[ASSISTANT] Me alegra mucho verte hoy.
 
 [USER]`.trim();
 
@@ -193,9 +196,9 @@ Usuario: ¿Qué te gusta hacer?
       const requestData = {
         inputs: fullPrompt,
         parameters: {
-          max_new_tokens: 100, // Aumentado para permitir respuestas más largas
-          temperature: 0.7, // Aumentado para más creatividad
-          top_p: 0.9, // Aumentado para más variedad
+          max_new_tokens: 50, // Reducido para respuestas más cortas
+          temperature: 0.5, // Reducido para respuestas más consistentes
+          top_p: 0.9,
           do_sample: true,
           return_full_text: false,
         },
@@ -267,6 +270,17 @@ Usuario: ¿Qué te gusta hacer?
         .replace(/ASSISTANT/gi, "")
         .replace(/\s+/g, " ")
         .trim();
+
+      // Eliminar preguntas y respuestas múltiples
+      response_text =
+        response_text
+          .split(/[?!.]/)
+          .filter(
+            (sentence) =>
+              sentence.trim() && !sentence.includes("?") && sentence.length > 5
+          )[0] || response_text;
+
+      response_text = response_text.trim() + ".";
 
       // Añadir la respuesta al historial
       this.addToHistory("assistant", response_text);
