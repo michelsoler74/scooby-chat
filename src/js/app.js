@@ -273,6 +273,9 @@ class ScoobyApp {
         "💭 Continuando la respuesta anterior..."
       );
 
+      // Extraer las primeras palabras de la respuesta anterior para verificar contexto
+      const previousTopicIndicator = prevResponse.split(/[.!?]/)[0].trim();
+
       // Añadir texto para indicar que queremos continuación
       const promptContinuacion =
         userMessage + " (continúa tu respuesta anterior)";
@@ -281,6 +284,20 @@ class ScoobyApp {
       const response = await this.llmService.getResponse(promptContinuacion);
 
       if (response && response.trim()) {
+        // Verificar si la respuesta está relacionada con el tema anterior
+        const isRelated = this.checkResponseRelevance(prevResponse, response);
+
+        if (!isRelated) {
+          console.warn(
+            "La continuación parece no estar relacionada con la respuesta anterior"
+          );
+          // Añadir un mensaje sutil de sistema
+          this.uiService.addMessage(
+            "Sistema",
+            "📝 Nota: Scooby quizás ha cambiado de tema. Si quieres seguir con el tema anterior, intenta hacer una pregunta más específica."
+          );
+        }
+
         // Mostrar la continuación como un nuevo mensaje
         this.uiService.addSystemMessage(response);
 
@@ -303,6 +320,73 @@ class ScoobyApp {
       this.uiService.continuationInProgress = false;
       this.uiService.updateButtonStates(false, false);
     }
+  }
+
+  /**
+   * Verifica si la nueva respuesta está relacionada con la anterior
+   * @param {string} prevResponse - Respuesta anterior
+   * @param {string} newResponse - Nueva respuesta (continuación)
+   * @returns {boolean} - true si parece estar relacionada
+   */
+  checkResponseRelevance(prevResponse, newResponse) {
+    // Extraer palabras clave de ambas respuestas (excluyendo palabras comunes)
+    const commonWords = [
+      "el",
+      "la",
+      "los",
+      "las",
+      "un",
+      "una",
+      "unos",
+      "unas",
+      "y",
+      "o",
+      "pero",
+      "porque",
+      "que",
+      "cuando",
+      "como",
+      "si",
+      "es",
+      "son",
+      "estar",
+      "estar",
+      "muy",
+      "también",
+      "esto",
+      "eso",
+      "aquello",
+      "scooby",
+      "galletas",
+      "amigo",
+      "woof",
+      "ruh",
+      "dooby",
+    ];
+
+    // Función para extraer palabras clave de un texto
+    const extractKeywords = (text) => {
+      return text
+        .toLowerCase()
+        .replace(/[^\wáéíóúüñ\s]/g, "") // Mantener solo letras, números y espacios
+        .split(/\s+/)
+        .filter((word) => word.length > 3 && !commonWords.includes(word));
+    };
+
+    const prevKeywords = extractKeywords(prevResponse);
+    const newKeywords = extractKeywords(newResponse);
+
+    // Contar coincidencias de palabras clave
+    let matches = 0;
+    for (const keyword of newKeywords) {
+      if (prevKeywords.includes(keyword)) {
+        matches++;
+      }
+    }
+
+    // Si hay al menos 2 coincidencias o 15% de las palabras coinciden, consideramos que está relacionado
+    const matchThreshold = Math.max(2, Math.floor(prevKeywords.length * 0.15));
+    return matches >= matchThreshold;
   }
 }
 

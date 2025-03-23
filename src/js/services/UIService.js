@@ -172,12 +172,46 @@ export class UIService {
   shouldShowContinueButton(text) {
     if (!text || text.length < 50) return false;
 
-    // Verificar si la respuesta no tiene un final claro
-    const hasProperEnding = /[.!?]$/.test(text.trim());
-    const endsWithEllipsis = text.trim().endsWith("...");
-    const reachedTokenLimit = text.length >= 115; // Cerca del límite de tokens
+    // Palabras/frases que indican que la respuesta está completa
+    const completionPhrases = [
+      "espero haberte ayudado",
+      "¿hay algo más",
+      "¿tienes alguna otra pregunta",
+      "¡hasta la próxima!",
+      "¡nos vemos pronto!",
+      "¡adiós!",
+      "¡cuídate!",
+    ];
 
-    return !hasProperEnding || endsWithEllipsis || reachedTokenLimit;
+    // Verificar si la respuesta contiene alguna frase de conclusión
+    const lowerText = text.toLowerCase();
+    const hasCompletionPhrase = completionPhrases.some((phrase) =>
+      lowerText.includes(phrase)
+    );
+
+    // Si contiene una frase de conclusión, la respuesta está completa
+    if (hasCompletionPhrase) return false;
+
+    // Verificar si la respuesta tiene un final lógico
+    const hasProperEnding =
+      /[.!?]$/.test(text.trim()) && !text.trim().endsWith("...");
+    const endsWithEllipsis = text.trim().endsWith("...");
+    const reachedTokenLimit = text.length >= 100; // Cerca del límite de tokens
+
+    // Analizar la estructura de la respuesta
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+    const lastSentenceIncomplete =
+      sentences.length > 0 &&
+      sentences[sentences.length - 1].length < 10 &&
+      !hasProperEnding;
+
+    // Si la última oración parece incompleta o hay muchas oraciones (posible continuación)
+    return (
+      !hasProperEnding ||
+      endsWithEllipsis ||
+      reachedTokenLimit ||
+      lastSentenceIncomplete
+    );
   }
 
   /**

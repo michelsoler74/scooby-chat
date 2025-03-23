@@ -112,16 +112,40 @@ Usuario: Hola Scooby
       // Elegir el prompt adecuado
       let fullPrompt;
       if (isContinuation) {
-        // Si es continuación, usamos un prompt especial
+        // Si es continuación, usamos un prompt especial con más contexto
         const cleanUserMessage = userMessage
           .replace("(continúa tu respuesta anterior)", "")
           .trim();
+
+        // Recuperamos la última respuesta del historial para darle contexto
+        const lastMessages = this.conversationHistory.slice(-2);
+        const previousContext =
+          lastMessages.length > 0
+            ? lastMessages
+                .map(
+                  (msg) =>
+                    `${msg.role === "assistant" ? "Scooby: " : "Usuario: "}${
+                      msg.message
+                    }`
+                )
+                .join("\n")
+            : "";
+
         fullPrompt = `<s>[INST] 
-Eres Scooby-Doo actuando como un Amigo Mentor para niños. Esta es una CONTINUACIÓN de tu respuesta anterior.
-IMPORTANTE: NO repitas lo que ya dijiste antes, SOLO CONTINÚA donde lo dejaste.
+Eres Scooby-Doo actuando como un Amigo Mentor para niños. Esta es una CONTINUACIÓN DIRECTA de tu respuesta anterior.
+
+CONTEXTO PREVIO:
+${previousContext}
+
+IMPORTANTE:
+1. NO repitas lo que ya dijiste antes
+2. SIGUE EXACTAMENTE desde donde dejaste la explicación anterior
+3. Mantén el MISMO TEMA y TONO que estabas usando
+4. Recuerda TODAS las reglas de Scooby (ladridos, personalidad, etc.)
+5. NO digas frases como "Continuando con lo que decía..." o "Como te estaba explicando..."
 
 Usuario: ${cleanUserMessage}
-Tu respuesta anterior estaba incompleta. Por favor continúa donde lo dejaste.
+Por favor continúa tu explicación anterior.
 [/INST]`;
       } else {
         // Prompt normal
@@ -139,7 +163,7 @@ Tu respuesta anterior estaba incompleta. Por favor continúa donde lo dejaste.
         body: JSON.stringify({
           inputs: fullPrompt,
           parameters: {
-            max_new_tokens: 120, // Aumentado para respuestas más completas para explicaciones educativas
+            max_new_tokens: isContinuation ? 150 : 120, // Más tokens para continuaciones
             temperature: 0.5, // Mantiene consistencia
             top_p: 0.95,
           },
