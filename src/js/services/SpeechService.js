@@ -16,6 +16,8 @@ class SpeechService {
     this.onSpeechEnd = null;
     this.onResult = null;
     this.onError = null;
+    this.onSpeakStart = null;
+    this.onSpeakEnd = null;
 
     // Configuración
     this.selectedVoice = null;
@@ -214,53 +216,87 @@ class SpeechService {
   }
 
   async speak(text) {
-    if (!text || !text.trim()) return Promise.resolve();
+    if (this.isSpeaking) {
+      this.stopSpeaking();
+    }
 
-    return new Promise((resolve) => {
-      try {
-        if (!this.synthesis) {
-          return resolve(); // Si no hay síntesis, resolvemos la promesa
-        }
+    if (!text || !text.trim()) return;
 
-        // Detener cualquier síntesis anterior
-        this.synthesis.cancel();
+    try {
+      const cleanText = text.replace(/\b(https?:\/\/\S+)\b/gi, "").trim();
 
-        // Detener reconocimiento mientras hablamos
-        this.stopListening();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
 
-        const utterance = new SpeechSynthesisUtterance(text);
+      if (this.selectedVoice) {
         utterance.voice = this.selectedVoice;
-        utterance.lang = this.selectedLanguage;
-        utterance.rate = 1;
-        utterance.pitch = 1;
+      }
 
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => {
+        console.log("Iniciando síntesis de voz");
+        this.isSpeaking = true;
+        if (typeof this.onSpeakStart === "function") {
+          this.onSpeakStart();
+        }
+      };
+
+      utterance.onend = () => {
+        console.log("Síntesis de voz finalizada");
+        this.isSpeaking = false;
+        if (typeof this.onSpeakEnd === "function") {
+          this.onSpeakEnd();
+        }
+      };
+
+      utterance.onerror = (err) => {
+        console.error("Error en síntesis de voz:", err);
+        this.isSpeaking = false;
+        if (typeof this.onSpeakEnd === "function") {
+          this.onSpeakEnd();
+        }
+      };
+
+      this.synthesis.speak(utterance);
+
+      return new Promise((resolve) => {
         utterance.onend = () => {
-          console.log("Síntesis finalizada");
           this.isSpeaking = false;
+          if (typeof this.onSpeakEnd === "function") {
+            this.onSpeakEnd();
+          }
           resolve();
         };
 
-        utterance.onerror = (error) => {
-          console.error("Error en síntesis:", error);
+        utterance.onerror = () => {
           this.isSpeaking = false;
-          resolve(); // Resolvemos igual para continuar
+          if (typeof this.onSpeakEnd === "function") {
+            this.onSpeakEnd();
+          }
+          resolve();
         };
-
-        this.isSpeaking = true;
-        console.log("Iniciando síntesis de voz...");
-        this.synthesis.speak(utterance);
-      } catch (error) {
-        console.error("Error al hablar:", error);
-        this.isSpeaking = false;
-        resolve(); // Resolvemos para evitar bloqueos
+      });
+    } catch (error) {
+      console.error("Error al sintetizar voz:", error);
+      this.isSpeaking = false;
+      if (typeof this.onSpeakEnd === "function") {
+        this.onSpeakEnd();
       }
-    });
+      throw error;
+    }
   }
 
   stopSpeaking() {
     if (this.synthesis) {
+      console.log("Deteniendo síntesis de voz");
       this.synthesis.cancel();
       this.isSpeaking = false;
+
+      if (typeof this.onSpeakEnd === "function") {
+        this.onSpeakEnd();
+      }
     }
   }
 }

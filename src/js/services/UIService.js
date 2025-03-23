@@ -31,7 +31,7 @@ export class UIService {
     this.isSpeaking = false;
 
     // Configuración inicial de botones
-    this.updateButtonStates(false, false);
+    this.updateButtonStates(false, false, false);
   }
 
   checkRequiredElements() {
@@ -106,24 +106,42 @@ export class UIService {
 
   /**
    * Actualiza el estado de los botones
+   * @param {boolean} isListening - Si está escuchando
+   * @param {boolean} isProcessing - Si está procesando
+   * @param {boolean} isSpeaking - Si está hablando (sintetizando voz)
    */
-  updateButtonStates(isListening, isProcessing) {
+  updateButtonStates(isListening, isProcessing, isSpeaking = false) {
     this.isListening = isListening;
 
     if (this.talkButton) {
-      this.talkButton.disabled = isListening || isProcessing;
+      this.talkButton.disabled = isListening || isProcessing || isSpeaking;
     }
     if (this.stopButton) {
-      this.stopButton.disabled = !isListening;
+      // El botón de detener está habilitado si está escuchando O está hablando
+      this.stopButton.disabled = !(isListening || isSpeaking);
+
+      // Mostrar el botón de detener con un estilo destacado si está hablando
+      if (isSpeaking) {
+        this.stopButton.classList.add("btn-danger");
+        this.stopButton.classList.remove("btn-secondary");
+        this.stopButton.title = "Detener a Scooby";
+      } else {
+        this.stopButton.classList.remove("btn-danger");
+        this.stopButton.classList.add("btn-secondary");
+        this.stopButton.title = "Detener grabación";
+      }
     }
     if (this.resumeButton) {
-      this.resumeButton.disabled = isListening || isProcessing;
+      this.resumeButton.disabled = isListening || isProcessing || isSpeaking;
     }
     if (this.sendButton) {
-      this.sendButton.disabled = isProcessing;
+      this.sendButton.disabled = isProcessing || isSpeaking;
     }
     if (this.textInput) {
-      this.textInput.disabled = isProcessing;
+      this.textInput.disabled = isProcessing || isSpeaking;
+    }
+    if (this.continueButton) {
+      this.continueButton.disabled = isProcessing || isSpeaking;
     }
 
     // Cuando estamos escuchando, Scooby debe estar en silencio

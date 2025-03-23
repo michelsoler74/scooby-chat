@@ -6,6 +6,7 @@ class ScoobyApp {
   constructor() {
     this.isInitialized = false;
     this.isProcessing = false;
+    this.isSpeaking = false;
     this.hasVoiceSupport = false;
 
     // Inicializar
@@ -79,13 +80,26 @@ class ScoobyApp {
 
     this.speechService.onSpeechStart = () => {
       console.log("Iniciando reconocimiento de voz");
-      this.uiService.updateButtonStates(true, false);
+      this.uiService.updateButtonStates(true, false, false);
       this.uiService.showSilentScooby();
     };
 
     this.speechService.onSpeechEnd = () => {
       console.log("Reconocimiento finalizado");
-      this.uiService.updateButtonStates(false, false);
+      this.uiService.updateButtonStates(false, false, this.isSpeaking);
+    };
+
+    // Nuevos callbacks para controlar el estado de la síntesis de voz
+    this.speechService.onSpeakStart = () => {
+      console.log("Iniciando síntesis de voz");
+      this.isSpeaking = true;
+      this.uiService.updateButtonStates(false, false, true);
+    };
+
+    this.speechService.onSpeakEnd = () => {
+      console.log("Síntesis de voz finalizada");
+      this.isSpeaking = false;
+      this.uiService.updateButtonStates(false, false, false);
     };
 
     this.speechService.onResult = async (text) => {
@@ -101,12 +115,12 @@ class ScoobyApp {
 
       // No mostrar errores de no-speech, solo actualizamos la UI
       if (errorMessage.includes("No se detectó ninguna voz")) {
-        this.uiService.updateButtonStates(false, false);
+        this.uiService.updateButtonStates(false, false, this.isSpeaking);
         return;
       }
 
       this.uiService.showWarning(errorMessage);
-      this.uiService.updateButtonStates(false, false);
+      this.uiService.updateButtonStates(false, false, this.isSpeaking);
       this.uiService.showSilentScooby();
     };
   }
@@ -172,7 +186,7 @@ class ScoobyApp {
           this.uiService.showError(
             "Error al iniciar reconocimiento: " + error.message
           );
-          this.uiService.updateButtonStates(false, false);
+          this.uiService.updateButtonStates(false, false, this.isSpeaking);
         }
       },
 
@@ -182,9 +196,17 @@ class ScoobyApp {
           this.speechService.stopListening();
           this.speechService.stopSpeaking();
         }
+
+        // Actualizar flags de estado
         this.isProcessing = false;
+        this.isSpeaking = false;
+
+        // Actualizar UI
         this.uiService.showSilentScooby();
-        this.uiService.updateButtonStates(false, false);
+        this.uiService.updateButtonStates(false, false, false);
+
+        // Cancelar cualquier solicitud pendiente si es posible
+        console.log("Deteniendo todos los procesos activos...");
       },
 
       onResume: async () => {
@@ -196,7 +218,7 @@ class ScoobyApp {
           await this.speechService.startListening();
         } catch (error) {
           console.error("Error al reanudar reconocimiento:", error);
-          this.uiService.updateButtonStates(false, false);
+          this.uiService.updateButtonStates(false, false, this.isSpeaking);
         }
       },
 
@@ -213,7 +235,7 @@ class ScoobyApp {
 
     // Actualizar estado
     this.isProcessing = true;
-    this.uiService.updateButtonStates(false, true);
+    this.uiService.updateButtonStates(false, true, this.isSpeaking);
 
     // Ocultar el botón de continuar al procesar un nuevo mensaje
     this.uiService.hideContinueButton();
@@ -238,8 +260,12 @@ class ScoobyApp {
         // Sintetizar voz si está disponible
         if (this.speechService) {
           this.uiService.showSpeakingScooby();
+          this.isSpeaking = true;
+          this.uiService.updateButtonStates(false, false, true);
           await this.speechService.speak(response);
+          this.isSpeaking = false;
           this.uiService.showSilentScooby();
+          this.uiService.updateButtonStates(false, false, false);
         }
       } else {
         throw new Error("No se recibió respuesta del modelo");
@@ -251,7 +277,8 @@ class ScoobyApp {
     } finally {
       // Actualizar estado
       this.isProcessing = false;
-      this.uiService.updateButtonStates(false, false);
+      this.isSpeaking = false;
+      this.uiService.updateButtonStates(false, false, false);
     }
   }
 
@@ -263,7 +290,7 @@ class ScoobyApp {
 
     // Actualizar estado
     this.isProcessing = true;
-    this.uiService.updateButtonStates(false, true);
+    this.uiService.updateButtonStates(false, true, this.isSpeaking);
     this.uiService.continuationInProgress = true;
 
     try {
@@ -304,8 +331,12 @@ class ScoobyApp {
         // Sintetizar voz si está disponible
         if (this.speechService) {
           this.uiService.showSpeakingScooby();
+          this.isSpeaking = true;
+          this.uiService.updateButtonStates(false, false, true);
           await this.speechService.speak(response);
+          this.isSpeaking = false;
           this.uiService.showSilentScooby();
+          this.uiService.updateButtonStates(false, false, false);
         }
       } else {
         throw new Error("No se recibió respuesta del modelo");
@@ -317,8 +348,9 @@ class ScoobyApp {
     } finally {
       // Actualizar estado
       this.isProcessing = false;
+      this.isSpeaking = false;
       this.uiService.continuationInProgress = false;
-      this.uiService.updateButtonStates(false, false);
+      this.uiService.updateButtonStates(false, false, false);
     }
   }
 
