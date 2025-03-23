@@ -55,7 +55,7 @@ class ScoobyApp {
       await this.llmService.checkConnection();
       this.uiService.addMessage(
         "Sistema",
-        "✅ Conectado al modelo Salamandra-7b correctamente"
+        "✅ Conectado al modelo Salamandra-2b correctamente"
       );
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
