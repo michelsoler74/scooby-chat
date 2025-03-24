@@ -235,8 +235,17 @@ class SpeechService {
     }
   }
 
-  async speak(text) {
-    if (this.isSpeaking) {
+  /**
+   * Sintetiza un texto en voz
+   * @param {string} text - Texto a sintetizar
+   * @param {Object} options - Opciones adicionales
+   * @param {number} options.volume - Volumen (0-1)
+   * @param {boolean} options.force - Si es true, fuerza la síntesis incluso sin interacción previa
+   * @param {number} options.rate - Velocidad de habla (0.1-2.0)
+   * @returns {Promise<void>} - Promesa que se resuelve cuando termina la síntesis
+   */
+  async speak(text, options = {}) {
+    if (this.isSpeaking && !options.force) {
       console.log("Ya hay una síntesis en curso, deteniéndola primero");
       this.stopSpeaking();
       // Esperar un momento para asegurar que se ha detenido
@@ -269,7 +278,10 @@ class SpeechService {
       }
 
       // Verificar si hay un estado pendiente (podría bloquear nuevas pronunciaciones)
-      if (this.synthesis.speaking || this.synthesis.pending) {
+      if (
+        (this.synthesis.speaking || this.synthesis.pending) &&
+        !options.force
+      ) {
         console.log("Hay síntesis pendiente o en progreso, limpiando...");
         this.synthesis.cancel();
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -303,9 +315,9 @@ class SpeechService {
       }
 
       // Configurar propiedades de voz para Scooby
-      utterance.rate = 0.9; // Un poco más lento para que sea claro
+      utterance.rate = options.rate || 0.9; // Un poco más lento para que sea claro
       utterance.pitch = 1.1; // Tono un poco más alto para Scooby
-      utterance.volume = 1.0; // Volumen al máximo
+      utterance.volume = options.volume || 1.0; // Volumen al máximo
       utterance.lang = "es-ES"; // Forzar idioma español
 
       console.log("Configuración de síntesis:", {
@@ -314,6 +326,7 @@ class SpeechService {
         pitch: utterance.pitch,
         volume: utterance.volume,
         lang: utterance.lang,
+        force: options.force || false,
       });
 
       // Manejar eventos de la síntesis

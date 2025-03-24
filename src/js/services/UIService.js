@@ -200,10 +200,17 @@ export class UIService {
    * Agrega un mensaje del sistema al chat
    * @param {string} text - El texto del mensaje
    * @param {boolean} isWelcome - Indica si es un mensaje de bienvenida
+   * @param {boolean} returnElement - Si es true, devuelve el elemento DOM creado
+   * @returns {HTMLElement|undefined} - El elemento DOM si returnElement es true
    */
-  addSystemMessage(text, isWelcome = false) {
+  addSystemMessage(text, isWelcome = false, returnElement = false) {
     this.lastResponse = text;
-    this.addMessage("Scooby", text, isWelcome ? "welcome-message" : "");
+    const messageElement = this.addMessage(
+      "Scooby",
+      text,
+      isWelcome ? "welcome-message" : "",
+      returnElement
+    );
 
     // Verificar si la respuesta podría estar incompleta
     if (this.shouldShowContinueButton(text)) {
@@ -211,6 +218,8 @@ export class UIService {
     } else {
       this.hideContinueButton();
     }
+
+    return returnElement ? messageElement : undefined;
   }
 
   /**
@@ -284,8 +293,10 @@ export class UIService {
    * @param {string} sender - El remitente del mensaje
    * @param {string} text - El texto del mensaje
    * @param {string} additionalClass - Clase adicional opcional para el mensaje
+   * @param {boolean} returnElement - Si es true, devuelve el elemento DOM creado
+   * @returns {HTMLElement|undefined} - El elemento DOM si returnElement es true
    */
-  addMessage(sender, text, additionalClass = "") {
+  addMessage(sender, text, additionalClass = "", returnElement = false) {
     if (!this.conversation) return;
 
     const messageDiv = document.createElement("div");
@@ -300,6 +311,8 @@ export class UIService {
     setTimeout(() => {
       this.conversation.scrollTop = this.conversation.scrollHeight;
     }, 100);
+
+    return returnElement ? messageDiv : undefined;
   }
 
   /**
@@ -325,6 +338,9 @@ export class UIService {
     }, 5000);
   }
 
+  /**
+   * Muestra un mensaje de advertencia
+   */
   showWarning(message) {
     const warningElement = document.createElement("div");
     warningElement.className = "warning-message";
@@ -339,10 +355,10 @@ export class UIService {
     // Añadir a la página
     document.body.appendChild(warningElement);
 
-    // Eliminar después de 5 segundos
+    // Eliminar después de 8 segundos
     setTimeout(() => {
       warningElement.remove();
-    }, 5000);
+    }, 8000);
   }
 
   hideError() {

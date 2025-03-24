@@ -153,45 +153,156 @@ class ScoobyApp {
       "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!";
 
     // Mostrar el mensaje en la UI, indicando que es un mensaje de bienvenida
-    this.uiService.addSystemMessage(welcomeMessage, true);
+    const welcomeElement = this.uiService.addSystemMessage(
+      welcomeMessage,
+      true,
+      true
+    );
 
-    // Asegurarnos de que la síntesis de voz se ejecute y sea visible
-    console.log("INICIANDO SÍNTESIS DE VOZ PARA MENSAJE DE BIENVENIDA");
-    if (this.speechService) {
+    // Asegurar que el sintetizador esté disponible antes de intentar hablar
+    // Esta inicialización forzada puede ayudar en dispositivos problemáticos
+    if (window.speechSynthesis) {
       try {
-        // Mostrar el Scooby hablando visualmente
-        this.uiService.showSpeakingScooby();
-        this.isSpeaking = true;
-        this.uiService.updateButtonStates(false, false, true);
+        console.log("Precalentando el motor de síntesis...");
+        window.speechSynthesis.cancel(); // Limpiar cualquier síntesis pendiente
 
-        // Reproducir el mensaje con una segunda espera para asegurar que las voces estén cargadas
-        // Usar mayor tiempo de espera en móviles
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.isMobile ? 800 : 200)
+        // Forzar la carga de voces - esto es crucial
+        const voicesLoaded = await new Promise((resolve) => {
+          const voices = window.speechSynthesis.getVoices();
+          if (voices && voices.length > 0) {
+            resolve(true);
+          } else {
+            // Si no hay voces, intentar cargarlas y esperar el evento
+            const voicesChangedCallback = () => {
+              window.speechSynthesis.removeEventListener(
+                "voiceschanged",
+                voicesChangedCallback
+              );
+              resolve(true);
+            };
+            window.speechSynthesis.addEventListener(
+              "voiceschanged",
+              voicesChangedCallback
+            );
+
+            // También establecer un timeout por si el evento nunca se dispara
+            setTimeout(() => resolve(false), 1500);
+          }
+        });
+
+        console.log(
+          "Estado de carga de voces:",
+          voicesLoaded ? "Completado" : "Fallido"
         );
-
-        // Intentar reproducir la voz y loggear todo el proceso
-        console.log("Reproduciendo mensaje de bienvenida en voz alta");
-
-        const speakingPromise = this.speechService.speak(welcomeMessage);
-        await speakingPromise;
-
-        // Mantener Scooby animado un poco más
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        console.log("Mensaje de bienvenida reproducido correctamente");
-      } catch (error) {
-        console.error("Error al sintetizar voz de bienvenida:", error);
-      } finally {
-        // Asegurarnos de restablecer el estado correcto
-        this.isSpeaking = false;
-        this.uiService.showSilentScooby();
-        this.uiService.updateButtonStates(false, false, false);
-        console.log("Finalizada síntesis de voz de bienvenida");
+      } catch (e) {
+        console.error("Error al precalentar síntesis:", e);
       }
-    } else {
-      console.error("El servicio de voz no está disponible");
     }
+
+    // Forzar interacción del usuario simulada para permitir audio
+    document.body.click();
+
+    // Sistema mejorado de síntesis de voz con reintentos y enfoque radical
+    console.log("INICIANDO SÍNTESIS DE VOZ PARA MENSAJE DE BIENVENIDA");
+
+    // Estrategia #1: Síntesis directa (inmediata)
+    try {
+      console.log("Estrategia #1: Síntesis directa");
+      this.uiService.showSpeakingScooby();
+      this.isSpeaking = true;
+      this.uiService.updateButtonStates(false, false, true);
+
+      const speakingPromise = this.speechService.speak(welcomeMessage, {
+        volume: 1.0,
+        force: true,
+      });
+      await speakingPromise;
+
+      console.log("Síntesis directa exitosa");
+      return;
+    } catch (error) {
+      console.error("Estrategia #1 falló:", error);
+    }
+
+    // Estrategia #2: Retraso corto y nueva síntesis
+    try {
+      console.log("Estrategia #2: Retraso y nueva síntesis");
+      // Espera para asegurar que el DOM se ha actualizado
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.isMobile ? 800 : 500)
+      );
+
+      // Agregar un "botón de leer" al mensaje de bienvenida
+      if (welcomeElement) {
+        const readButton = document.createElement("button");
+        readButton.textContent = "🔊 Escuchar mensaje";
+        readButton.className = "btn btn-sm btn-info mt-2 read-welcome-btn";
+        readButton.style.display = "block";
+        readButton.onclick = async () => {
+          readButton.disabled = true;
+          readButton.textContent = "🔊 Leyendo...";
+
+          try {
+            this.uiService.showSpeakingScooby();
+            this.isSpeaking = true;
+
+            const speakPromise = this.speechService.speak(welcomeMessage, {
+              volume: 1.0,
+              force: true,
+            });
+            await speakPromise;
+
+            readButton.textContent = "✅ Mensaje leído";
+            setTimeout(() => {
+              readButton.style.display = "none";
+            }, 3000);
+          } catch (err) {
+            readButton.textContent = "❌ Error al leer";
+            readButton.disabled = false;
+          } finally {
+            this.isSpeaking = false;
+            this.uiService.showSilentScooby();
+          }
+        };
+
+        welcomeElement.appendChild(readButton);
+      }
+
+      // Intentar la síntesis de voz nuevamente
+      this.uiService.showSpeakingScooby();
+      this.isSpeaking = true;
+
+      const speakingPromise = this.speechService.speak(welcomeMessage, {
+        volume: 1.0,
+        force: true,
+        rate: 0.9, // Ligeramente más lento para mejor comprensión
+      });
+      await speakingPromise;
+
+      console.log("Síntesis con retraso exitosa");
+
+      // Ocultar el botón si la síntesis fue exitosa
+      const readButton = document.querySelector(".read-welcome-btn");
+      if (readButton) {
+        readButton.textContent = "✅ Mensaje leído";
+        setTimeout(() => {
+          readButton.style.display = "none";
+        }, 3000);
+      }
+
+      return;
+    } catch (error) {
+      console.error("Estrategia #2 falló:", error);
+    }
+
+    // Si llegamos aquí, ambas estrategias fallaron,
+    // pero ya tenemos el botón de lectura manual visible para el usuario
+
+    // Siempre restablecer el estado al finalizar
+    this.isSpeaking = false;
+    this.uiService.showSilentScooby();
+    this.uiService.updateButtonStates(false, false, false);
+    console.log("Finalizada síntesis de voz de bienvenida");
   }
 
   /**
@@ -206,47 +317,73 @@ class ScoobyApp {
       // Mostrar el mensaje en la UI, indicando que es un mensaje de bienvenida
       this.uiService.addSystemMessage(welcomeMessage, true);
 
-      // Leer el mensaje en voz alta
+      // Sistema mejorado de síntesis de voz para el mensaje después de limpiar chat
       console.log("INICIANDO SÍNTESIS DE VOZ TRAS LIMPIAR CHAT");
-      if (this.speechService) {
+
+      // Esperar para asegurar que el DOM se ha actualizado
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.isMobile ? 500 : 300)
+      );
+
+      // Número máximo de intentos
+      const maxIntentos = 3;
+      let intentoActual = 0;
+      let exitoso = false;
+
+      while (intentoActual < maxIntentos && !exitoso) {
+        intentoActual++;
+        console.log(
+          `Intento ${intentoActual} de ${maxIntentos} para sintetizar voz post-limpieza`
+        );
+
         try {
-          // Mostrar el Scooby hablando visualmente
+          // Asegurarnos que la UI muestra que Scooby está hablando
           this.uiService.showSpeakingScooby();
           this.isSpeaking = true;
           this.uiService.updateButtonStates(false, false, true);
 
-          // Pequeña espera para asegurar que la UI se ha actualizado
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.isMobile ? 800 : 200)
+          // Añadir un tiempo de espera variable según el intento
+          const tiempoEspera = this.isMobile ? 800 : 200 + intentoActual * 300;
+          await new Promise((resolve) => setTimeout(resolve, tiempoEspera));
+
+          // Reproducir el mensaje con un volumen ligeramente incrementado
+          console.log(
+            `Reproduciendo mensaje post-limpieza (intento ${intentoActual})`
           );
-
-          // Intentar reproducir la voz
-          console.log("Reproduciendo mensaje después de limpiar chat");
-
-          const speakingPromise = this.speechService.speak(welcomeMessage);
+          const speakingPromise = this.speechService.speak(welcomeMessage, {
+            volume: 1.0,
+          });
           await speakingPromise;
 
-          // Mantener Scooby animado un poco más
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
+          // Si llegamos aquí sin error, la síntesis fue exitosa
           console.log("Mensaje post-limpieza reproducido correctamente");
+          exitoso = true;
+
+          // Mantener Scooby animado un poco más para que sea natural
+          await new Promise((resolve) => setTimeout(resolve, 500));
         } catch (error) {
           console.error(
-            "Error al sintetizar voz después de limpiar chat:",
+            `Error en intento ${intentoActual} de sintetizar voz post-limpieza:`,
             error
           );
-        } finally {
-          // Asegurarnos de restablecer el estado correcto
-          this.isSpeaking = false;
-          this.uiService.showSilentScooby();
-          this.uiService.updateButtonStates(false, false, false);
-          console.log("Finalizada síntesis de voz post-limpieza");
+
+          // Si es el último intento, pasar silenciosamente
+          if (intentoActual === maxIntentos) {
+            console.warn(
+              "No se pudo reproducir el mensaje post-limpieza después de varios intentos"
+            );
+          } else {
+            // Pequeña pausa antes del siguiente intento
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
         }
-      } else {
-        console.error(
-          "El servicio de voz no está disponible para mensaje post-limpieza"
-        );
       }
+
+      // Siempre restablecer el estado al finalizar
+      this.isSpeaking = false;
+      this.uiService.showSilentScooby();
+      this.uiService.updateButtonStates(false, false, false);
+      console.log("Finalizada síntesis de voz post-limpieza");
     }, 1000);
   }
 
