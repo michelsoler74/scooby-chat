@@ -175,6 +175,40 @@ class ScoobyApp {
       const existingWelcomeMessage = document.querySelector(".welcome-message");
       if (existingWelcomeMessage && !isRetry) {
         console.log("Ya existe un mensaje de bienvenida, no se muestra otro");
+
+        // Incluso si ya existe, intentamos reproducirlo por voz si no se ha hecho antes
+        const welcomeText =
+          existingWelcomeMessage.textContent ||
+          "¡Scooby-dooby-doo! ¡Hola amigo! Me llamo Scooby y estoy aquí para charlar contigo.";
+
+        // Si no tiene un botón de reproducción manual, indicaría que nunca se reprodujo con éxito
+        if (!existingWelcomeMessage.querySelector(".read-welcome-btn")) {
+          console.log(
+            "Intentando la síntesis de voz para mensaje de bienvenida existente"
+          );
+          this.uiService.showSpeakingScooby();
+          this.isSpeaking = true;
+
+          try {
+            // Intentar forzadamente la síntesis
+            await this.speechService.speak(welcomeText, {
+              volume: 1.0,
+              force: true,
+              rate: 0.9,
+            });
+            return true;
+          } catch (error) {
+            console.error(
+              "Error al sintetizar mensaje de bienvenida existente:",
+              error
+            );
+            this.addManualPlayButton(existingWelcomeMessage, welcomeText);
+          } finally {
+            this.isSpeaking = false;
+            this.uiService.showSilentScooby();
+          }
+        }
+
         return true;
       }
 
@@ -219,19 +253,36 @@ class ScoobyApp {
       // Asegurar que el scroll está al final para mostrar el mensaje
       this.uiService.scrollToBottom();
 
-      // Asegurar que el sintetizador esté listo
+      // Asegurar que el sintetizador esté listo y precargado
+      let readyToSpeak = false;
       if (window.speechSynthesis) {
         try {
-          console.log(
-            "Preparando motor de síntesis para mensaje de bienvenida"
-          );
-          window.speechSynthesis.cancel(); // Limpiar síntesis pendiente
+          console.log("Pre-inicializando motor de síntesis para bienvenida");
+
+          // Cancelar cualquier síntesis pendiente para limpiar el estado
+          window.speechSynthesis.cancel();
 
           // Forzar carga de voces (crucial para algunos navegadores)
-          window.speechSynthesis.getVoices();
+          const voices = window.speechSynthesis.getVoices();
+          console.log(`Voces cargadas: ${voices.length} disponibles`);
+
+          // Precarga con un texto corto para asegurar inicialización
+          const preloadUtterance = new SpeechSynthesisUtterance("Hola");
+          preloadUtterance.volume = 0; // Sin sonido, solo para inicializar
+          preloadUtterance.onend = () => {
+            console.log("Precarga de síntesis completada");
+            readyToSpeak = true;
+          };
+          window.speechSynthesis.speak(preloadUtterance);
 
           // Simular interacción para permitir audio (importante en Safari/iOS)
           document.body.click();
+
+          // Conceder tiempo para que carguen las voces
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.isMobile ? 1000 : 500)
+          );
+          readyToSpeak = true;
         } catch (e) {
           console.error("Error al preparar síntesis:", e);
         }
@@ -239,7 +290,7 @@ class ScoobyApp {
 
       // Usar una pausa corta para asegurar que la UI esté lista
       await new Promise((resolve) =>
-        setTimeout(resolve, this.isMobile ? 500 : 300)
+        setTimeout(resolve, this.isMobile ? 800 : 500)
       );
 
       // Mostrar a Scooby en modo hablando
@@ -247,38 +298,68 @@ class ScoobyApp {
       this.isSpeaking = true;
       this.uiService.updateButtonStates(false, false, true);
 
-      console.log("INICIANDO SÍNTESIS DE VOZ PARA BIENVENIDA");
-      try {
-        // Intentar la síntesis con opciones forzadas y volumen alto
-        const speakingPromise = this.speechService.speak(welcomeMessage, {
-          volume: 1.0,
-          force: true,
-          rate: 0.9, // Ligeramente más lento para niños
-        });
+      console.log(
+        `INICIANDO SÍNTESIS DE VOZ PARA BIENVENIDA (readyToSpeak: ${readyToSpeak})`
+      );
 
-        // Esperar a que termine la síntesis
-        await speakingPromise;
-        console.log("Mensaje de bienvenida sintetizado correctamente");
+      // Si hubo errores preparando el sintetizador, intentar de todos modos
+      // pero con múltiples intentos y más opciones
+      let synthesisSuccess = false;
+      let attempt = 0;
+      const maxAttempts = 3;
 
-        // Añadir un pequeño retraso para mantener la animación un poco más
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      while (!synthesisSuccess && attempt < maxAttempts) {
+        attempt++;
+        try {
+          console.log(`Intento de síntesis #${attempt}`);
 
-        return true;
-      } catch (error) {
-        console.error("Error al sintetizar mensaje de bienvenida:", error);
+          // Intentar la síntesis con opciones forzadas y volumen alto
+          const speakingPromise = this.speechService.speak(welcomeMessage, {
+            volume: 1.0,
+            force: true,
+            rate: 0.9 - attempt * 0.05, // Más lento en cada intento
+          });
 
-        // Si falla, añadir botón para reproducir manualmente
+          // Esperar a que termine la síntesis
+          await speakingPromise;
+          console.log(
+            `Mensaje de bienvenida sintetizado correctamente en intento #${attempt}`
+          );
+          synthesisSuccess = true;
+
+          // Añadir un pequeño retraso para mantener la animación un poco más
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(
+            `Error en intento #${attempt} para sintetizar mensaje:`,
+            error
+          );
+
+          // Pequeña pausa antes del siguiente intento
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+          }
+        }
+      }
+
+      // Si todos los intentos fallaron, añadir el botón de reproducción manual
+      if (!synthesisSuccess) {
+        console.warn(
+          "Todos los intentos de síntesis fallaron, añadiendo botón manual"
+        );
         this.addManualPlayButton(welcomeElement, welcomeMessage);
         return false;
-      } finally {
-        // Restaurar estado (solo si no se cerró por error)
-        this.isSpeaking = false;
-        this.uiService.showSilentScooby();
-        this.uiService.updateButtonStates(false, false, false);
       }
+
+      return true;
     } catch (error) {
       console.error("Error general al mostrar mensaje de bienvenida:", error);
       return false;
+    } finally {
+      // Restaurar estado (solo si no se cerró por error)
+      this.isSpeaking = false;
+      this.uiService.showSilentScooby();
+      this.uiService.updateButtonStates(false, false, false);
     }
   }
 
