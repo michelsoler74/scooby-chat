@@ -11,7 +11,8 @@ class HuggingFaceService {
     this.apiKey = config.HUGGINGFACE_API_KEY;
     this.isConnected = false;
     this.conversationHistory = [];
-    this.maxHistoryLength = 4;
+    this.maxHistoryLength = 6;
+    this.isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
 
     // Prompt mejorado para Mixtral que integra principios educativos
     this.systemPrompt = `<s>[INST] 
@@ -30,6 +31,7 @@ REGLAS ESTRICTAS (NUNCA LAS IGNORES):
 5. Respuestas CORTAS y SENCILLAS, adaptadas para niños
 6. NUNCA menciones temas inapropiados (violencia, terror o contenido sensible)
 7. Fomenta VALORES POSITIVOS: amistad, curiosidad, respeto y trabajo en equipo
+8. SÉ CONSISTENTE en tus respuestas: no cambies información ya proporcionada
 
 EJEMPLOS CORRECTOS (responde como estos):
 - "¡Ruf-ruf-ruuuf! ¡Ri-ri-riiiii! ¡Me rencantan las Scooby Galletas! Son mi comida favorita en todo el mundo."
@@ -53,6 +55,7 @@ Usuario: Hola Scooby
     // Log inicial para verificar la configuración
     console.log("HuggingFaceService inicializado con Mixtral-8x7B");
     console.log("URL de la API:", this.baseUrl);
+    console.log(`Tipo de dispositivo: ${this.isMobile ? "móvil" : "desktop"}`);
   }
 
   async checkConnection() {
@@ -88,10 +91,31 @@ Usuario: Hola Scooby
   }
 
   addToHistory(role, message) {
-    this.conversationHistory.push({ role, message });
-    if (this.conversationHistory.length > this.maxHistoryLength) {
+    if (!message || message.trim().length < 3) return;
+
+    this.conversationHistory.push({ role, message, timestamp: Date.now() });
+
+    const maxHistory = this.isMobile ? 4 : this.maxHistoryLength;
+
+    if (this.conversationHistory.length > maxHistory) {
       this.conversationHistory.shift();
     }
+
+    console.log(
+      `Historia actualizada (${this.conversationHistory.length} mensajes)`
+    );
+  }
+
+  getRecentConversationSummary() {
+    if (this.conversationHistory.length === 0) return "";
+
+    const recentMessages = this.conversationHistory.slice(-3);
+    return recentMessages
+      .map(
+        (msg) =>
+          `${msg.role === "assistant" ? "Scooby:" : "Usuario:"} ${msg.message}`
+      )
+      .join("\n");
   }
 
   async getResponse(userMessage) {
@@ -104,21 +128,19 @@ Usuario: Hola Scooby
         await this.checkConnection();
       }
 
-      // Verificar si es una solicitud de continuación
+      this.addToHistory("user", userMessage);
+
       const isContinuation = userMessage.includes(
         "(continúa tu respuesta anterior)"
       );
 
-      // Elegir el prompt adecuado
       let fullPrompt;
       if (isContinuation) {
-        // Si es continuación, usamos un prompt especial con más contexto
         const cleanUserMessage = userMessage
           .replace("(continúa tu respuesta anterior)", "")
           .trim();
 
-        // Recuperamos la última respuesta del historial para darle contexto
-        const lastMessages = this.conversationHistory.slice(-2);
+        const lastMessages = this.conversationHistory.slice(-3);
         const previousContext =
           lastMessages.length > 0
             ? lastMessages
@@ -143,16 +165,45 @@ IMPORTANTE:
 3. Mantén el MISMO TEMA y TONO que estabas usando
 4. Recuerda TODAS las reglas de Scooby (ladridos, personalidad, etc.)
 5. NO digas frases como "Continuando con lo que decía..." o "Como te estaba explicando..."
+6. SÉ COMPLETAMENTE CONSISTENTE con lo que ya has dicho antes
+7. DEBES continuar con el MISMO razonamiento y datos, sin cambiar opinión
 
 Usuario: ${cleanUserMessage}
 Por favor continúa tu explicación anterior.
 [/INST]`;
       } else {
-        // Prompt normal
-        fullPrompt = this.systemPrompt + userMessage + " [/INST]";
+        const conversationContext = this.getRecentConversationSummary();
+        const contextSection = conversationContext
+          ? `CONTEXTO DE CONVERSACIÓN RECIENTE:
+${conversationContext}
+
+`
+          : "";
+
+        fullPrompt = `<s>[INST] 
+Eres Scooby-Doo, el perro de la serie animada, actuando como un Amigo Mentor para niños.
+
+${contextSection}REGLAS ESTRICTAS:
+1. SIEMPRE responde en ESPAÑOL
+2. SIEMPRE comienza con un ladrido de Scooby
+3. Hablas como Scooby usando palabras con "R" al inicio
+4. Respuestas CORTAS y SENCILLAS, para niños
+5. SÉ CONSISTENTE con tus respuestas anteriores
+6. Sé SIEMPRE Scooby, NUNCA un asistente genérico
+
+Usuario: ${userMessage}
+[/INST]`;
       }
 
-      console.log("Enviando prompt:", fullPrompt.substring(0, 100) + "...");
+      console.log(
+        `Enviando prompt (dispositivo: ${this.isMobile ? "móvil" : "desktop"}):`
+      );
+      console.log(fullPrompt.substring(0, 100) + "...");
+
+      const tokenLimit = this.isMobile ? 200 : 150;
+      const baseTokens = isContinuation ? tokenLimit + 50 : tokenLimit;
+
+      const temperature = this.isMobile ? 0.4 : 0.5;
 
       const response = await fetch(this.baseUrl, {
         method: "POST",
@@ -163,9 +214,10 @@ Por favor continúa tu explicación anterior.
         body: JSON.stringify({
           inputs: fullPrompt,
           parameters: {
-            max_new_tokens: isContinuation ? 150 : 120, // Más tokens para continuaciones
-            temperature: 0.5, // Mantiene consistencia
+            max_new_tokens: baseTokens,
+            temperature: temperature,
             top_p: 0.95,
+            repetition_penalty: 1.1,
           },
         }),
       });
@@ -188,23 +240,10 @@ Por favor continúa tu explicación anterior.
         response_text = String(data);
       }
 
-      // Extraer solo la respuesta del asistente
       response_text = this.extractResponse(response_text, fullPrompt);
       console.log("Respuesta extraída:", response_text);
 
-      // Verificar y corregir el formato
-      if (!this.hasScoobyBark(response_text)) {
-        response_text = "¡Ruh-roh! ¡Rororo-wof-wof! " + response_text;
-      }
-
-      // Asegurar que termina con punto
-      if (
-        !response_text.endsWith(".") &&
-        !response_text.endsWith("!") &&
-        !response_text.endsWith("?")
-      ) {
-        response_text += ".";
-      }
+      response_text = this.formatScoobyResponse(response_text);
 
       this.addToHistory("assistant", response_text);
       return response_text;
@@ -214,8 +253,33 @@ Por favor continúa tu explicación anterior.
     }
   }
 
+  formatScoobyResponse(text) {
+    if (!this.hasScoobyBark(text)) {
+      text = "¡Ruh-roh! ¡Rororo-wof-wof! " + text;
+    }
+
+    if (!text.endsWith(".") && !text.endsWith("!") && !text.endsWith("?")) {
+      text += ".";
+    }
+
+    text = text.replace(/\s+/g, " ").trim();
+
+    if (this.isMobile && text.length > 800) {
+      const lastPeriod = Math.max(
+        text.lastIndexOf(". ", 700),
+        text.lastIndexOf("! ", 700),
+        text.lastIndexOf("? ", 700)
+      );
+
+      if (lastPeriod > 300) {
+        text = text.substring(0, lastPeriod + 1);
+      }
+    }
+
+    return text;
+  }
+
   hasScoobyBark(text) {
-    // Lista de posibles ladridos/expresiones de Scooby
     const barks = [
       "ruh-roh",
       "rororo",
@@ -229,50 +293,46 @@ Por favor continúa tu explicación anterior.
       "rmmm",
     ];
 
-    // Comprobar si el texto incluye alguna de las variantes (insensible a mayúsculas/minúsculas)
     const lowerText = text.toLowerCase();
     return barks.some((bark) => lowerText.includes(bark));
   }
 
   extractResponse(fullText, prompt) {
-    // Si el texto contiene el prompt, quedarnos con lo que viene después
     if (fullText.includes(prompt)) {
       let afterPrompt = fullText
         .substring(fullText.indexOf(prompt) + prompt.length)
         .trim();
 
-      // Si hay otro [INST] después, quedarse solo con el texto antes de ese
       if (afterPrompt.includes("[INST]")) {
         afterPrompt = afterPrompt
           .substring(0, afterPrompt.indexOf("[INST]"))
           .trim();
       }
 
-      // Eliminar cualquier meta-instrucción que pueda colarse
+      afterPrompt = afterPrompt.replace(/<\/s>/g, "").trim();
+
       afterPrompt = this.cleanMetaInstructions(afterPrompt);
 
       return afterPrompt;
     }
 
-    // Si encontramos la marca de fin de instrucción, tomar lo que sigue
     if (fullText.includes("[/INST]")) {
       let parts = fullText.split("[/INST]");
       if (parts.length > 1) {
         let response = parts[parts.length - 1].trim();
 
-        // Si hay otro [INST] después, quedarse solo con el texto antes de ese
         if (response.includes("[INST]")) {
           response = response.substring(0, response.indexOf("[INST]")).trim();
         }
 
-        // Eliminar cualquier meta-instrucción que pueda colarse
+        response = response.replace(/<\/s>/g, "").trim();
+
         response = this.cleanMetaInstructions(response);
 
         return response;
       }
     }
 
-    // Si todo falla, eliminar etiquetas de sistema conocidas
     fullText = fullText
       .replace(/<s>/g, "")
       .replace(/<\/s>/g, "")
@@ -280,13 +340,10 @@ Por favor continúa tu explicación anterior.
       .replace(/\[\/INST\]/g, "")
       .trim();
 
-    // Eliminar cualquier meta-instrucción que pueda colarse
     return this.cleanMetaInstructions(fullText);
   }
 
-  // Método para limpiar instrucciones meta-textuales de la respuesta
   cleanMetaInstructions(text) {
-    // Patrones de texto que no deberían aparecer en la respuesta final
     const metaPatterns = [
       /\(Si el usuario.*?\)/gi,
       /Si el usuario no proporciona.*?$/gim,
@@ -297,15 +354,16 @@ Por favor continúa tu explicación anterior.
       /\¿En qué puedo ayudarte.*?\?/gi,
       /\¿Tienes alguna pregunta.*?\?/gi,
       /\¿Qué quieres saber.*?\?/gi,
+      /\bcontinuando con lo que decía\b/gi,
+      /\bcomo te estaba explicando\b/gi,
+      /\bcomo mencioné anteriormente\b/gi,
     ];
 
-    // Eliminar todos los patrones meta-textuales
     let cleanText = text;
     metaPatterns.forEach((pattern) => {
       cleanText = cleanText.replace(pattern, "");
     });
 
-    // Eliminar espacios duplicados y limpiar
     cleanText = cleanText.replace(/\s+/g, " ").trim();
 
     return cleanText;
