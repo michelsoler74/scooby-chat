@@ -158,19 +158,11 @@ class ScoobyApp {
             style.remove();
           }, 500);
 
+          // Marcar que ya se intentó el mensaje de bienvenida
+          this.welcomeAttempted = true;
+
           // Inicializar la aplicación y mostrar mensaje de bienvenida
           await this.initializeApp();
-
-          // Forzar el mensaje de bienvenida después de un breve momento
-          setTimeout(async () => {
-            if (!this.welcomeAttempted) {
-              console.log(
-                "Forzando mensaje de bienvenida después de inicialización"
-              );
-              this.welcomeAttempted = true;
-              await this.showWelcomeMessage(true);
-            }
-          }, 1000);
         } catch (error) {
           console.error("Error durante la inicialización:", error);
           // Restaurar el botón en caso de error
@@ -233,50 +225,23 @@ class ScoobyApp {
         "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
 
-      // Forzar el nuevo mensaje de bienvenida de Scooby
-      // Aumentamos el tiempo de espera para dispositivos móviles
-      const welcomeDelay = this.isMobile ? 1500 : 800; // Mayor tiempo en móviles
+      // Solo mostrar el mensaje de bienvenida si no se ha intentado antes
+      if (!this.welcomeAttempted) {
+        // Aumentamos el tiempo de espera para dispositivos móviles
+        const welcomeDelay = this.isMobile ? 1500 : 800;
 
-      console.log(
-        `Dispositivo ${
-          this.isMobile ? "móvil" : "desktop"
-        } detectado, mostrando bienvenida en ${welcomeDelay}ms`
-      );
-
-      // Variable para verificar si se ha mostrado el mensaje
-      let welcomeAttempted = false;
-      let welcomeMessageShown = false;
-
-      // Primera llamada
-      setTimeout(async () => {
-        welcomeAttempted = true;
-        welcomeMessageShown = await this.showWelcomeMessage();
         console.log(
-          `Primer intento de bienvenida: ${
-            welcomeMessageShown ? "exitoso" : "fallido"
-          }`
+          `Dispositivo ${
+            this.isMobile ? "móvil" : "desktop"
+          } detectado, mostrando bienvenida en ${welcomeDelay}ms`
         );
 
-        // Si el primer intento falla, intentar nuevamente después de un momento
-        if (!welcomeMessageShown) {
-          setTimeout(async () => {
-            console.log("Segundo intento de mostrar mensaje de bienvenida");
-            await this.showWelcomeMessage(true); // true indica segundo intento
-          }, 2000);
-        }
-      }, welcomeDelay);
-
-      // Asegurar que el mensaje se muestra en dispositivos móviles
-      // Este es un mecanismo de seguridad para dispositivos que puedan tener problemas
-      if (this.isMobile) {
-        setTimeout(() => {
-          if (!welcomeAttempted) {
-            console.log(
-              "MECANISMO DE SEGURIDAD: Forzando mensaje de bienvenida en móvil"
-            );
-            this.showWelcomeMessage(true); // true indica intento forzado
+        setTimeout(async () => {
+          if (!this.welcomeAttempted) {
+            this.welcomeAttempted = true;
+            await this.showWelcomeMessage();
           }
-        }, 4000);
+        }, welcomeDelay);
       }
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
