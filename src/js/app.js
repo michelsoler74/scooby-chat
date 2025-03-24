@@ -273,10 +273,18 @@ class ScoobyApp {
           "Ya existe un mensaje de bienvenida, intentando reproducirlo"
         );
 
-        // Incluso si ya existe, intentamos reproducirlo por voz
-        const welcomeText =
+        // Incluso si ya existe, intentamos reproducirlo por voz, pero limpiando emoticonos
+        let welcomeText =
           existingWelcomeMessage.textContent ||
           "¡Scooby-dooby-doo! ¡Hola amigo! Me llamo Scooby y estoy aquí para charlar contigo.";
+
+        // Limpiar emoticonos del texto antes de la síntesis
+        welcomeText = welcomeText
+          .replace(
+            /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
+            ""
+          )
+          .trim();
 
         // Intentar reproducir el mensaje existente
         try {
@@ -347,13 +355,21 @@ class ScoobyApp {
         existingMessages.forEach((msg) => msg.remove());
       }
 
-      // Mensaje de bienvenida con emojis
-      const welcomeMessage =
+      // Mensaje de bienvenida con emojis (para mostrar en pantalla)
+      const welcomeMessageWithEmojis =
         "👋 ¡Scooby-dooby-doo! ¡Hola amigo! Me llamo Scooby y estoy aquí para charlar contigo. ¿Cómo te llamas y cuántos años tienes? ¡Así podré conocerte mejor!";
 
-      // Mostrar el mensaje en la UI
+      // Mensaje de bienvenida sin emojis (para síntesis de voz)
+      const welcomeMessageForSpeech = welcomeMessageWithEmojis
+        .replace(
+          /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
+          ""
+        )
+        .trim();
+
+      // Mostrar el mensaje con emojis en la UI
       const welcomeElement = this.uiService.addSystemMessage(
-        welcomeMessage,
+        welcomeMessageWithEmojis,
         true,
         true
       );
@@ -409,7 +425,7 @@ class ScoobyApp {
         try {
           console.log(`Intento de síntesis #${attempt}`);
 
-          await this.speechService.speak(welcomeMessage, {
+          await this.speechService.speak(welcomeMessageForSpeech, {
             volume: 1.0,
             force: true,
             rate: 0.9 - attempt * 0.1,
@@ -431,7 +447,7 @@ class ScoobyApp {
 
       if (!success) {
         console.warn("Todos los intentos de síntesis fallaron");
-        this.addManualPlayButton(welcomeElement, welcomeMessage);
+        this.addManualPlayButton(welcomeElement, welcomeMessageForSpeech);
         return false;
       }
 
@@ -808,12 +824,20 @@ class ScoobyApp {
 
       // Procesar respuesta
       if (response && response.trim()) {
-        // Mostrar respuesta en UI
+        // Mostrar respuesta con emojis en UI
         const messageElement = this.uiService.addSystemMessage(
           response,
           false,
           true
         );
+
+        // Limpiar emoticonos para la síntesis de voz
+        const responseForSpeech = response
+          .replace(
+            /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
+            ""
+          )
+          .trim();
 
         // Forzar scroll al final en todos los dispositivos
         this.uiService.scrollToBottom();
@@ -846,11 +870,14 @@ class ScoobyApp {
             }
 
             // Iniciar la síntesis con opciones mejoradas
-            const speakingPromise = this.speechService.speak(response, {
-              volume: 1.0,
-              force: true,
-              rate: 0.9, // Ligeramente más lento para mejor comprensión
-            });
+            const speakingPromise = this.speechService.speak(
+              responseForSpeech,
+              {
+                volume: 1.0,
+                force: true,
+                rate: 0.9, // Ligeramente más lento para mejor comprensión
+              }
+            );
 
             // Esperar a que termine la síntesis de voz
             await speakingPromise;
@@ -867,7 +894,7 @@ class ScoobyApp {
               messageElement &&
               !messageElement.querySelector(".read-message-btn")
             ) {
-              this.addManualPlayButton(messageElement, response);
+              this.addManualPlayButton(messageElement, responseForSpeech);
             }
           } finally {
             // Asegurarnos de restablecer el estado correcto
