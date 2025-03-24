@@ -198,10 +198,12 @@ export class UIService {
 
   /**
    * Agrega un mensaje del sistema al chat
+   * @param {string} text - El texto del mensaje
+   * @param {boolean} isWelcome - Indica si es un mensaje de bienvenida
    */
-  addSystemMessage(text) {
+  addSystemMessage(text, isWelcome = false) {
     this.lastResponse = text;
-    this.addMessage("Scooby", text);
+    this.addMessage("Scooby", text, isWelcome ? "welcome-message" : "");
 
     // Verificar si la respuesta podría estar incompleta
     if (this.shouldShowContinueButton(text)) {
@@ -279,17 +281,25 @@ export class UIService {
 
   /**
    * Agrega un mensaje al chat
+   * @param {string} sender - El remitente del mensaje
+   * @param {string} text - El texto del mensaje
+   * @param {string} additionalClass - Clase adicional opcional para el mensaje
    */
-  addMessage(sender, text) {
+  addMessage(sender, text, additionalClass = "") {
     if (!this.conversation) return;
 
     const messageDiv = document.createElement("div");
     messageDiv.className = `mensaje ${
       sender === "Usuario" ? "user-message" : "system-message"
-    }`;
+    } ${additionalClass}`.trim();
     messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
     this.conversation.appendChild(messageDiv);
     this.conversation.scrollTop = this.conversation.scrollHeight;
+
+    // Forzar scroll al fondo, especialmente importante en móviles
+    setTimeout(() => {
+      this.conversation.scrollTop = this.conversation.scrollHeight;
+    }, 100);
   }
 
   /**

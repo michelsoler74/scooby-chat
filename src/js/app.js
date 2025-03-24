@@ -9,7 +9,21 @@ class ScoobyApp {
     this.isSpeaking = false;
     this.hasVoiceSupport = false;
 
-    // Añadir clase para permitir audio
+    // Detectar tipo de dispositivo
+    this.isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
+    console.log(
+      `Inicializando Scooby en dispositivo ${
+        this.isMobile ? "móvil" : "desktop"
+      }`
+    );
+    console.log(
+      `Dimensiones de ventana: ${window.innerWidth}x${window.innerHeight}`
+    );
+
+    // Añadir clases específicas al body para detectar el tipo de dispositivo
+    document.body.classList.add(
+      this.isMobile ? "mobile-device" : "desktop-device"
+    );
     document.body.classList.add("user-interaction");
 
     // Configurar evento de interacción para navegadores que requieren interacción antes de reproducir audio
@@ -18,6 +32,7 @@ class ScoobyApp {
       // Asegurarnos de que el audio esté disponible después de interacción
       if (window.speechSynthesis) {
         window.speechSynthesis.getVoices();
+        console.log("Voces cargadas después de interacción de usuario");
       }
     };
 
@@ -79,62 +94,103 @@ class ScoobyApp {
       );
 
       // Forzar el nuevo mensaje de bienvenida de Scooby
+      // Aumentamos el tiempo de espera para dispositivos móviles
+      const welcomeDelay = this.isMobile ? 2000 : 1000; // Mayor tiempo en móviles
+
+      console.log(
+        `Dispositivo ${
+          this.isMobile ? "móvil" : "desktop"
+        } detectado, mostrando bienvenida en ${welcomeDelay}ms`
+      );
+
+      // Guardamos una referencia al mensaje para verificar después
+      let welcomeMessageShown = false;
+
+      // Primera llamada con tiempo normal
       setTimeout(async () => {
-        console.log("Enviando mensaje de bienvenida actualizado");
-        // Limpiar cualquier mensaje existente en la UI antes de mostrar el nuevo
-        const existingMessages = document.querySelectorAll(".system-message");
-        if (existingMessages.length > 1) {
-          // Si ya hay mensajes del sistema, eliminar el último (que sería el de bienvenida)
-          existingMessages[existingMessages.length - 1].remove();
-        }
+        await this.showWelcomeMessage();
+        welcomeMessageShown = true;
+      }, welcomeDelay);
 
-        const welcomeMessage =
-          "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!";
-
-        // Mostrar el mensaje en la UI
-        this.uiService.addSystemMessage(welcomeMessage);
-
-        // Asegurarnos de que la síntesis de voz se ejecute y sea visible
-        console.log("INICIANDO SÍNTESIS DE VOZ PARA MENSAJE DE BIENVENIDA");
-        if (this.speechService) {
-          try {
-            // Mostrar el Scooby hablando visualmente
-            this.uiService.showSpeakingScooby();
-            this.isSpeaking = true;
-            this.uiService.updateButtonStates(false, false, true);
-
-            // Reproducir el mensaje con una segunda espera para asegurar que las voces estén cargadas
-            await new Promise((resolve) => setTimeout(resolve, 200));
-
-            // Intentar reproducir la voz y loggear todo el proceso
-            console.log("Reproduciendo mensaje de bienvenida en voz alta");
-
-            const speakingPromise = this.speechService.speak(welcomeMessage);
-            await speakingPromise;
-
-            // Mantener Scooby animado un poco más
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            console.log("Mensaje de bienvenida reproducido correctamente");
-          } catch (error) {
-            console.error("Error al sintetizar voz de bienvenida:", error);
-          } finally {
-            // Asegurarnos de restablecer el estado correcto
-            this.isSpeaking = false;
-            this.uiService.showSilentScooby();
-            this.uiService.updateButtonStates(false, false, false);
-            console.log("Finalizada síntesis de voz de bienvenida");
+      // Mecanismo de seguridad: si después de 5 segundos no se mostró, forzar
+      if (this.isMobile) {
+        setTimeout(() => {
+          if (!welcomeMessageShown) {
+            console.log(
+              "MECANISMO DE SEGURIDAD: Forzando mensaje de bienvenida en móvil"
+            );
+            this.showWelcomeMessage();
           }
-        } else {
-          console.error("El servicio de voz no está disponible");
-        }
-      }, 1000);
+        }, 5000);
+      }
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
       this.uiService.showError(
         "No se pudo conectar con el modelo: " + error.message
       );
       throw error;
+    }
+  }
+
+  /**
+   * Método dedicado para mostrar el mensaje de bienvenida
+   * Extraído para permitir múltiples llamadas si es necesario
+   */
+  async showWelcomeMessage() {
+    console.log(
+      `Enviando mensaje de bienvenida actualizado (dispositivo ${
+        this.isMobile ? "móvil" : "desktop"
+      })`
+    );
+    // Limpiar cualquier mensaje existente en la UI antes de mostrar el nuevo
+    const existingMessages = document.querySelectorAll(".system-message");
+    if (existingMessages.length > 1) {
+      // Si ya hay mensajes del sistema, eliminar el último (que sería el de bienvenida)
+      existingMessages[existingMessages.length - 1].remove();
+    }
+
+    const welcomeMessage =
+      "¡Scooby-dooby-doo! ¡Hola! Me llamo Scooby y soy tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? ¡Así podré adaptar mis respuestas para ti!";
+
+    // Mostrar el mensaje en la UI, indicando que es un mensaje de bienvenida
+    this.uiService.addSystemMessage(welcomeMessage, true);
+
+    // Asegurarnos de que la síntesis de voz se ejecute y sea visible
+    console.log("INICIANDO SÍNTESIS DE VOZ PARA MENSAJE DE BIENVENIDA");
+    if (this.speechService) {
+      try {
+        // Mostrar el Scooby hablando visualmente
+        this.uiService.showSpeakingScooby();
+        this.isSpeaking = true;
+        this.uiService.updateButtonStates(false, false, true);
+
+        // Reproducir el mensaje con una segunda espera para asegurar que las voces estén cargadas
+        // Usar mayor tiempo de espera en móviles
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.isMobile ? 800 : 200)
+        );
+
+        // Intentar reproducir la voz y loggear todo el proceso
+        console.log("Reproduciendo mensaje de bienvenida en voz alta");
+
+        const speakingPromise = this.speechService.speak(welcomeMessage);
+        await speakingPromise;
+
+        // Mantener Scooby animado un poco más
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        console.log("Mensaje de bienvenida reproducido correctamente");
+      } catch (error) {
+        console.error("Error al sintetizar voz de bienvenida:", error);
+      } finally {
+        // Asegurarnos de restablecer el estado correcto
+        this.isSpeaking = false;
+        this.uiService.showSilentScooby();
+        this.uiService.updateButtonStates(false, false, false);
+        console.log("Finalizada síntesis de voz de bienvenida");
+      }
+    } else {
+      console.error("El servicio de voz no está disponible");
     }
   }
 
@@ -147,8 +203,8 @@ class ScoobyApp {
       const welcomeMessage =
         "¡Ruf-ruf! ¡Chat limpio y listo para nuevas aventuras! ¿Quieres contarme algo nuevo o preguntar sobre algún tema interesante?";
 
-      // Mostrar el mensaje en la UI
-      this.uiService.addSystemMessage(welcomeMessage);
+      // Mostrar el mensaje en la UI, indicando que es un mensaje de bienvenida
+      this.uiService.addSystemMessage(welcomeMessage, true);
 
       // Leer el mensaje en voz alta
       console.log("INICIANDO SÍNTESIS DE VOZ TRAS LIMPIAR CHAT");
@@ -160,7 +216,9 @@ class ScoobyApp {
           this.uiService.updateButtonStates(false, false, true);
 
           // Pequeña espera para asegurar que la UI se ha actualizado
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.isMobile ? 800 : 200)
+          );
 
           // Intentar reproducir la voz
           console.log("Reproduciendo mensaje después de limpiar chat");

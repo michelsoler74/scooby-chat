@@ -703,3 +703,112 @@ main {
     flex: 0 0 100%;
   }
 }
+
+/* Estilos específicos para dispositivos móviles y desktop */
+body.mobile-device {
+  /* Variables específicas para móvil */
+  --conversation-min-height: 50vh;
+  --video-max-height: 30vh;
+  overflow-x: hidden; /* Prevenir scroll horizontal en móviles */
+}
+
+body.desktop-device {
+  /* Variables específicas para desktop */
+  --conversation-min-height: 400px;
+  --video-max-height: 500px;
+}
+
+/* Mejora de mensajes del sistema para ambos dispositivos */
+.system-message {
+  background-color: #f5f5f5;
+  margin-right: auto;
+  border-left: 3px solid #17a2b8; /* Borde distintivo */
+  position: relative; /* Para estilos adicionales */
+  z-index: 1; /* Asegurar que siempre sea visible */
+}
+
+/* Estilo especial para el primer mensaje (bienvenida) */
+.system-message:first-of-type {
+  background-color: #e3f8fa; /* Color más distintivo */
+  border-left: 3px solid #009688;
+  font-weight: 500; /* Ligeramente más visible */
+}
+
+/* Mejoras específicas para móvil */
+@media (max-width: 768px) {
+  .system-message {
+    max-width: 95%; /* Más ancho en móvil */
+    margin-bottom: 0.8rem;
+  }
+
+  .system-message:first-of-type {
+    margin-top: 0.5rem; /* Espacio superior */
+    padding: 0.75rem; /* Más padding */
+    animation: highlight-welcome 2s ease-in-out; /* Animación de destaque */
+  }
+}
+
+/* Animación para destacar el mensaje de bienvenida */
+@keyframes highlight-welcome {
+  0%,
+  100% {
+    background-color: #e3f8fa;
+  }
+  50% {
+    background-color: #d0f0f4;
+  }
+}
+
+/* Mensaje de bienvenida */
+.welcome-message {
+  background-color: #e8f7ff !important;
+  border-left: 4px solid #00a8ff !important;
+  position: relative;
+  padding: 0.75rem 1rem !important;
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  animation: slide-in-welcome 0.4s ease-out, pulse-welcome 2s infinite alternate;
+}
+
+/* Decoración especial */
+.welcome-message::before {
+  content: "👋";
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  background: #fff;
+  border-radius: 50%;
+  padding: 0 6px;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slide-in-welcome {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-welcome {
+  from {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  }
+  to {
+    box-shadow: 0 3px 8px rgba(0, 168, 255, 0.2);
+  }
+}
+
+/* Versión para móvil */
+@media (max-width: 768px) {
+  .welcome-message {
+    margin-left: 0.5rem !important;
+    margin-right: 0.5rem !important;
+    max-width: calc(100% - 2rem) !important;
+  }
+}
