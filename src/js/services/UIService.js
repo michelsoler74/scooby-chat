@@ -305,14 +305,43 @@ export class UIService {
     } ${additionalClass}`.trim();
     messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
     this.conversation.appendChild(messageDiv);
-    this.conversation.scrollTop = this.conversation.scrollHeight;
 
-    // Forzar scroll al fondo, especialmente importante en móviles
-    setTimeout(() => {
-      this.conversation.scrollTop = this.conversation.scrollHeight;
-    }, 100);
+    // Asegurarnos de que el scroll siempre muestre el último mensaje
+    this.scrollToBottom();
 
     return returnElement ? messageDiv : undefined;
+  }
+
+  /**
+   * Desplaza el chat hasta el final para mostrar los mensajes más recientes
+   * Con detección de dispositivo móvil para comportamiento específico
+   */
+  scrollToBottom() {
+    if (!this.conversation) return;
+
+    const isMobile = document.body.classList.contains("mobile-device");
+
+    // Comportamiento diferente para móviles
+    if (isMobile) {
+      // Asegurar que el scroll llega al final inmediatamente
+      this.conversation.scrollTop = this.conversation.scrollHeight;
+
+      // Y también después de un momento para evitar problemas con la carga de contenido
+      setTimeout(() => {
+        this.conversation.scrollTop = this.conversation.scrollHeight;
+      }, 100);
+
+      // Un tercer intento después de más tiempo por si acaso
+      setTimeout(() => {
+        this.conversation.scrollTop = this.conversation.scrollHeight;
+      }, 500);
+    } else {
+      // En desktop solo necesitamos el comportamiento básico
+      this.conversation.scrollTop = this.conversation.scrollHeight;
+      setTimeout(() => {
+        this.conversation.scrollTop = this.conversation.scrollHeight;
+      }, 100);
+    }
   }
 
   /**
@@ -391,6 +420,9 @@ export class UIService {
         // Configurar el video para que se repita mientras Scooby habla
         this.scoobyTalking.loop = true;
 
+        // Añadir clase al body para destacar que Scooby está hablando
+        document.body.classList.add("scooby-is-speaking");
+
         // Crear una promesa para manejar la reproducción
         const playPromise = this.scoobyTalking.play();
 
@@ -429,6 +461,9 @@ export class UIService {
 
         // Asegurar que el video se reproduce desde el principio
         this.scoobySilent.currentTime = 0;
+
+        // Quitar clase del body cuando Scooby deja de hablar
+        document.body.classList.remove("scooby-is-speaking");
 
         // Crear una promesa para manejar la reproducción
         const playPromise = this.scoobySilent.play();

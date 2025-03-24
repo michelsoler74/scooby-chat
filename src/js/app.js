@@ -26,6 +26,16 @@ class ScoobyApp {
     );
     document.body.classList.add("user-interaction");
 
+    // Ajustar la altura de elementos basados en la altura de la ventana en móviles
+    if (this.isMobile) {
+      this.adjustMobileLayout();
+      // También ajustar cuando cambie el tamaño o la orientación
+      window.addEventListener("resize", () => this.adjustMobileLayout());
+      window.addEventListener("orientationchange", () =>
+        this.adjustMobileLayout()
+      );
+    }
+
     // Configurar evento de interacción para navegadores que requieren interacción antes de reproducir audio
     const setupUserInteraction = () => {
       document.body.classList.add("user-interaction");
@@ -547,6 +557,51 @@ class ScoobyApp {
     });
   }
 
+  /**
+   * Ajusta el diseño en dispositivos móviles basado en la altura actual de la ventana
+   * para garantizar que siempre se vea el avatar y los controles
+   */
+  adjustMobileLayout() {
+    if (!this.isMobile) return;
+
+    const windowHeight = window.innerHeight;
+    const headerHeight = 60; // Altura aproximada del header
+
+    // Calcular altura para el área de video (avatar de Scooby)
+    const videoHeight = Math.min(windowHeight * 0.3, 200); // Máximo 30% de la altura o 200px
+
+    // Obtener los elementos principales
+    const videoSection = document.querySelector(".video-section");
+    const chatSection = document.querySelector(".chat-section");
+    const conversation = document.getElementById("conversation");
+    const inputArea = document.querySelector(".input-area");
+
+    if (videoSection && chatSection && inputArea) {
+      // Establecer altura y posición de la sección de video
+      videoSection.style.height = `${videoHeight}px`;
+      videoSection.style.top = `${headerHeight}px`;
+
+      // Ajustar la posición de la sección de chat debajo del video
+      chatSection.style.top = `${videoHeight + headerHeight}px`;
+
+      // Calcular altura disponible para el chat
+      const chatSectionHeight = windowHeight - videoHeight - headerHeight;
+      chatSection.style.height = `${chatSectionHeight}px`;
+
+      // Si tenemos el área de conversación y conocemos la altura del área de input
+      if (conversation && inputArea) {
+        const inputHeight = inputArea.offsetHeight;
+        conversation.style.maxHeight = `${
+          chatSectionHeight - inputHeight - 10
+        }px`;
+      }
+
+      console.log(
+        `Layout móvil ajustado - Video: ${videoHeight}px, Chat: ${chatSectionHeight}px`
+      );
+    }
+  }
+
   async processUserInput(userMessage) {
     // Verificar si ya hay un proceso en curso
     if (this.isProcessing || !userMessage || !userMessage.trim()) return;
@@ -567,6 +622,11 @@ class ScoobyApp {
       // Mostrar indicador de procesamiento
       this.uiService.addMessage("Sistema", "💭 Procesando tu mensaje...");
 
+      // En móviles, asegurarnos de que el avatar permanezca visible
+      if (this.isMobile) {
+        this.adjustMobileLayout();
+      }
+
       // Obtener respuesta
       const response = await this.llmService.getResponse(userMessage);
 
@@ -574,6 +634,11 @@ class ScoobyApp {
       if (response && response.trim()) {
         // Mostrar respuesta en UI
         this.uiService.addSystemMessage(response);
+
+        // Forzar scroll al final en dispositivos móviles
+        if (this.isMobile) {
+          this.uiService.scrollToBottom();
+        }
 
         // Sintetizar voz si está disponible
         if (this.speechService) {
@@ -619,6 +684,11 @@ class ScoobyApp {
       // Actualizar estado
       this.isProcessing = false;
       this.uiService.updateButtonStates(false, false, false);
+
+      // Asegurar que el scroll está al final después de todo el proceso
+      if (this.isMobile) {
+        setTimeout(() => this.uiService.scrollToBottom(), 300);
+      }
     }
   }
 
