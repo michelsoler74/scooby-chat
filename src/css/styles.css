@@ -219,12 +219,19 @@ main {
 .video-container {
   max-width: 500px;
   width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
 }
 
 .video-container video {
   width: 100%;
   height: auto;
   display: block;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Microphone Status */
@@ -252,54 +259,125 @@ main {
     padding: 0.5rem;
   }
 
+  /* Mejor estructura para móvil - video arriba, chat abajo */
   .chat-section {
     flex: none;
-    height: 60vh;
+    height: auto; /* Altura automática, no fija */
+    min-height: 65vh; /* Mínimo 65% de la altura visible */
     min-width: unset;
     order: 2;
     max-height: none;
     width: 100%;
     margin-bottom: 1rem;
+    display: flex; /* Para controlar mejor el espacio interno */
+    flex-direction: column;
   }
 
+  /* Video section para móvil */
   .video-section {
     flex: none;
-    height: 35vh;
+    height: auto; /* Altura automática */
+    max-height: 35vh; /* Limitar altura máxima del video */
     order: 1;
-    max-height: 250px;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    background-color: #f7f9fc;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Ajustar los videos para que sean responsive */
+  .video-container {
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: 30vh;
+  }
+
+  .video-container video {
+    border-radius: 8px;
+    max-height: 30vh;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
   }
 
   #conversation {
-    max-height: calc(60vh - 140px);
+    flex: 1; /* Tomar el espacio disponible */
+    max-height: none; /* Eliminar restricción de altura máxima */
+    min-height: 40vh; /* Altura mínima para el chat */
     margin-bottom: 0.5rem;
     padding: 0.5rem;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
+    border: 1px solid #e6e6e6; /* Borde visible para mejor distinción */
+    border-radius: 0 0 10px 10px;
+    border-top: none;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .input-area {
     padding: 0.5rem;
     position: relative;
     width: 100%;
+    background-color: #f8f9fa; /* Fondo ligeramente diferente */
+    border-radius: 10px;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05); /* Sombra sutil */
   }
 
-  .video-container {
-    max-width: 100%;
-    height: 100%;
-  }
-
+  /* Mejor organización de botones en móvil */
   .buttons-container {
-    flex-direction: column;
-    padding: 0 1rem;
-  }
-
-  .btn {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 botones por fila */
+    gap: 0.4rem;
+    padding: 0;
     width: 100%;
-    margin: 0.25rem 0;
   }
 
+  /* Botones más compactos */
+  .buttons-container .btn {
+    width: 100%;
+    margin: 0;
+    padding: 0.4rem 0.25rem;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  /* Entrada de texto más compacta */
   .input-group {
-    padding: 0 1rem;
+    margin-bottom: 0.5rem;
+    padding: 0;
+  }
+
+  .form-control {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.95rem;
+    height: 38px;
+  }
+
+  #send-btn {
+    padding: 0.4rem 0.7rem !important;
+    font-size: 0.95rem;
+  }
+
+  /* Botón de continuar en móvil - especial atención a este botón */
+  #continue-btn {
+    grid-column: span 2; /* Ocupa toda la fila */
+    background-color: #ffcc00;
+    color: #333;
+    border: 2px solid #ffa700;
+    font-weight: bold;
+    margin-top: 0.2rem;
+    padding: 0.5rem;
+  }
+
+  /* El botón de limpiar también puede ocupar toda la fila */
+  #clear-chat-btn {
+    grid-column: span 2;
   }
 
   .mensaje {
@@ -344,11 +422,6 @@ main {
     color: #666;
   }
 
-  #continue-btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
-  }
-
   .buttons-container {
     flex-wrap: wrap;
     justify-content: space-between;
@@ -362,29 +435,79 @@ main {
 }
 
 @media (max-width: 480px) {
+  /* Layout más vertical en teléfonos muy pequeños */
   .chat-section {
-    height: 45vh;
+    min-height: 60vh; /* Un poco menos en pantallas muy pequeñas */
   }
 
   .video-section {
-    height: 35vh;
-  }
-
-  #conversation {
-    max-height: calc(45vh - 120px);
+    max-height: 25vh;
   }
 
   .video-container {
-    max-width: 150px;
+    max-height: 20vh;
   }
 
+  .video-container video {
+    max-height: 20vh;
+  }
+
+  #conversation {
+    min-height: 35vh;
+  }
+
+  /* Botones aún más compactos */
+  .buttons-container .btn {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.2rem;
+  }
+
+  /* Texto más pequeño */
+  .form-control,
+  #send-btn {
+    font-size: 0.9rem;
+  }
+
+  /* Mensajes más compactos */
+  .mensaje {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* Ajuste para pantallas muy altas (teléfonos modernos) */
+@media (max-height: 700px) and (max-width: 768px) {
+  /* Reducir aún más las alturas en pantallas pequeñas */
+  .video-section {
+    max-height: 20vh;
+  }
+
+  .video-container,
+  .video-container video {
+    max-height: 18vh;
+  }
+
+  #conversation {
+    min-height: 30vh;
+  }
+}
+
+/* Touch improvements - mejor experiencia táctil */
+@media (hover: none) and (pointer: coarse) {
+  /* Para dispositivos táctiles, hacer los botones más grandes */
+  .buttons-container .btn {
+    min-height: 44px; /* Mínimo recomendado para áreas táctiles */
+  }
+
+  /* Scroll más suave */
+  #conversation {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Input más grande para dispositivos táctiles */
   .form-control {
-    font-size: 0.9rem;
-  }
-
-  .btn {
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
+    min-height: 44px;
   }
 }
 
@@ -485,5 +608,98 @@ main {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 204, 0, 0);
+  }
+}
+
+/* Mobile Chat Header - solo visible en móvil */
+.mobile-chat-header {
+  display: none;
+  background-color: #f8fafc;
+  padding: 0.5rem;
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid #e6e6e6;
+  text-align: center;
+  color: #4a4a4a;
+  margin-bottom: 0;
+}
+
+.mobile-chat-header h5 {
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Media queries para dispositivos móviles */
+@media (max-width: 768px) {
+  .mobile-chat-header {
+    display: block;
+  }
+
+  /* Mejorar espaciado del título principal */
+  header h1 {
+    font-size: 1.25rem;
+    margin: 0;
+    padding: 0.5rem 0;
+  }
+
+  /* Cambiar estilos visuales para móvil */
+  #conversation {
+    border-radius: 0 0 10px 10px;
+    border-top: none;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Asegurar que el chat ocupa el espacio disponible */
+  .chat-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Mejorar la visibilidad de los mensajes en móvil */
+  .user-message,
+  .system-message {
+    max-width: 90%;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.95rem;
+  }
+
+  /* Para ajustar bien la sección de video */
+  .video-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+/* Media query para tablets y pantallas medianas */
+@media (min-width: 769px) and (max-width: 1024px) {
+  main {
+    gap: 1rem;
+  }
+
+  .chat-section {
+    flex: 0 0 45%;
+  }
+
+  .video-section {
+    flex: 0 0 55%;
+  }
+
+  .buttons-container {
+    flex-wrap: wrap;
+  }
+
+  .buttons-container .btn {
+    flex: 1 1 auto;
+    margin: 0.25rem;
+    min-width: 45%;
+    font-size: 0.95rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  #continue-btn,
+  #clear-chat-btn {
+    flex: 0 0 100%;
   }
 }
