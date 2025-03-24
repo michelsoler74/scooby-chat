@@ -359,14 +359,63 @@ main {
     height: 38px;
   }
 
-  #send-btn {
+  /* Estilos mejorados para los botones en móvil - ajustado para mostrar todos los botones */
+  body.mobile-device .buttons-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 botones por fila */
+    grid-template-rows: repeat(2, auto); /* 2 filas */
+    gap: 0.3rem;
+    margin-bottom: 0.5rem;
+    width: 100%;
+  }
+
+  /* Hacer los botones más compactos en móvil */
+  body.mobile-device .buttons-container .btn {
+    width: 100%;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.8rem;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 4px;
+    margin: 0;
+  }
+
+  /* Ajustar botones específicos para que sean más visibles */
+  body.mobile-device #talk-btn {
+    background-color: #28a745; /* Verde */
+    color: white;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  body.mobile-device #stop-btn {
+    background-color: #dc3545; /* Rojo */
+    color: white;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  body.mobile-device #resume-btn {
+    background-color: #17a2b8; /* Cyan */
+    color: white;
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  body.mobile-device #send-btn {
     padding: 0.4rem 0.7rem !important;
     font-size: 0.95rem;
   }
 
   /* Botón de continuar en móvil - especial atención a este botón */
-  #continue-btn {
-    grid-column: span 2; /* Ocupa toda la fila */
+  body.mobile-device #continue-btn {
+    grid-column: span 3; /* Ocupa toda la fila */
     background-color: #ffcc00;
     color: #333;
     border: 2px solid #ffa700;
@@ -375,9 +424,12 @@ main {
     padding: 0.5rem;
   }
 
-  /* El botón de limpiar también puede ocupar toda la fila */
-  #clear-chat-btn {
-    grid-column: span 2;
+  /* El botón de limpiar */
+  body.mobile-device #clear-chat-btn {
+    grid-column: span 3; /* Ocupa toda la fila */
+    background-color: #6c757d;
+    color: white;
+    grid-row: 2;
   }
 
   .mensaje {
@@ -917,6 +969,46 @@ body.desktop-device {
 .scooby-is-speaking .video-section {
   background-color: #e6f7ff;
   transition: background-color 0.3s ease;
+  position: relative;
+  z-index: 11;
+}
+
+/* Efecto visual mejorado cuando Scooby está hablando */
+.scooby-is-speaking .video-container {
+  animation: subtle-bounce 2s infinite alternate;
+}
+
+/* Indicador visual de que Scooby está hablando */
+.scooby-is-speaking .video-container::after {
+  content: "🔊";
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 100, 255, 0.2);
+  border-radius: 50%;
+  padding: 5px;
+  font-size: 18px;
+  animation: pulse-icon 1s infinite alternate;
+}
+
+@keyframes subtle-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes pulse-icon {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 /* Scroll siempre visible en móvil para mejor usabilidad */
@@ -933,5 +1025,67 @@ body.desktop-device {
 
   #conversation::-webkit-scrollbar-thumb:hover {
     background-color: rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* Estilo para el mensaje que se está reproduciendo actualmente */
+.current-speaking {
+  position: relative;
+  background-color: #e8f4ff !important;
+  border-left-color: #0088ff !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0, 136, 255, 0.2);
+}
+
+.current-speaking::after {
+  content: "🔊";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 14px;
+  opacity: 0.7;
+  animation: speak-pulse 1s infinite alternate;
+}
+
+@keyframes speak-pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0.9;
+    transform: scale(1.1);
+  }
+}
+
+/* Estilo para botones de reproducción manual */
+.read-welcome-btn,
+.read-message-btn {
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.read-welcome-btn:hover,
+.read-message-btn:hover {
+  background-color: #138496;
+}
+
+/* Versión para móvil */
+@media (max-width: 768px) {
+  .read-welcome-btn,
+  .read-message-btn {
+    width: 100%; /* Ocupa todo el ancho en móvil */
+    padding: 8px;
+    font-size: 0.85rem;
   }
 }
