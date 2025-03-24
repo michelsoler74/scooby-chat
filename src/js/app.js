@@ -9,6 +9,9 @@ class ScoobyApp {
     this.isSpeaking = false;
     this.hasVoiceSupport = false;
     this.welcomeAttempted = false;
+    this.uiService = null;
+    this.speechService = null;
+    this.llmService = null;
 
     // Detectar tipo de dispositivo
     this.isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
@@ -131,8 +134,14 @@ class ScoobyApp {
             style.remove();
           }, 500);
 
-          // Inicializar la aplicación
+          // Inicializar la aplicación y esperar a que termine
           await this.initializeApp();
+
+          // Esperar un momento antes de mostrar el mensaje de bienvenida
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Mostrar el mensaje de bienvenida
+          await this.showWelcomeMessage();
         } catch (error) {
           console.error("Error durante la inicialización:", error);
           // Restaurar el botón en caso de error
@@ -176,15 +185,15 @@ class ScoobyApp {
       this.setupEventHandlers();
       this.setupSpeechCallbacks();
 
-      // Verificar conexión con el modelo y mostrar mensaje de bienvenida
+      // Verificar conexión con el modelo
       await this.checkModelConnection();
-      await this.showWelcomeMessage();
 
       this.isInitialized = true;
       console.log("Aplicación inicializada correctamente");
     } catch (error) {
       console.error("Error al inicializar la aplicación:", error);
       this.uiService?.showError("Error al inicializar: " + error.message);
+      throw error; // Propagar el error para que se pueda manejar en el botón
     }
   }
 
