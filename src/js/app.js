@@ -37,33 +37,6 @@ class ScoobyApp {
       );
     }
 
-    // Configurar evento de interacción para navegadores que requieren interacción antes de reproducir audio
-    const setupUserInteraction = async (event) => {
-      document.body.classList.add("user-interaction");
-
-      // Asegurarnos de que el audio esté disponible después de interacción
-      if (window.speechSynthesis) {
-        window.speechSynthesis.getVoices();
-        console.log("Voces cargadas después de interacción de usuario");
-
-        // Si aún no se ha intentado reproducir el mensaje de bienvenida, intentarlo ahora
-        if (!this.welcomeAttempted && this.isInitialized) {
-          console.log(
-            "Intentando reproducir mensaje de bienvenida después de interacción"
-          );
-          this.welcomeAttempted = true;
-          await this.showWelcomeMessage(true);
-        }
-      }
-    };
-
-    // Agregar detectores para capturar la primera interacción del usuario
-    document.addEventListener("click", setupUserInteraction, { once: true });
-    document.addEventListener("touchstart", setupUserInteraction, {
-      once: true,
-    });
-    document.addEventListener("keydown", setupUserInteraction, { once: true });
-
     // Crear un botón temporal para forzar la interacción
     const createTemporaryButton = () => {
       const tempButton = document.createElement("button");
@@ -158,10 +131,7 @@ class ScoobyApp {
             style.remove();
           }, 500);
 
-          // Marcar que ya se intentó el mensaje de bienvenida
-          this.welcomeAttempted = true;
-
-          // Inicializar la aplicación y mostrar mensaje de bienvenida
+          // Inicializar la aplicación
           await this.initializeApp();
         } catch (error) {
           console.error("Error durante la inicialización:", error);
@@ -206,8 +176,9 @@ class ScoobyApp {
       this.setupEventHandlers();
       this.setupSpeechCallbacks();
 
-      // Verificar conexión con el modelo
+      // Verificar conexión con el modelo y mostrar mensaje de bienvenida
       await this.checkModelConnection();
+      await this.showWelcomeMessage();
 
       this.isInitialized = true;
       console.log("Aplicación inicializada correctamente");
@@ -224,25 +195,7 @@ class ScoobyApp {
         "Sistema",
         "✅ Conectado a Scooby-Doo Amigo Mentor correctamente"
       );
-
-      // Solo mostrar el mensaje de bienvenida si no se ha intentado antes
-      if (!this.welcomeAttempted) {
-        // Aumentamos el tiempo de espera para dispositivos móviles
-        const welcomeDelay = this.isMobile ? 1500 : 800;
-
-        console.log(
-          `Dispositivo ${
-            this.isMobile ? "móvil" : "desktop"
-          } detectado, mostrando bienvenida en ${welcomeDelay}ms`
-        );
-
-        setTimeout(async () => {
-          if (!this.welcomeAttempted) {
-            this.welcomeAttempted = true;
-            await this.showWelcomeMessage();
-          }
-        }, welcomeDelay);
-      }
+      console.log("Conexión con el modelo establecida correctamente");
     } catch (error) {
       console.error("Error de conexión con el modelo:", error);
       this.uiService.showError(
