@@ -20,6 +20,16 @@ class ScoobyApp {
     this.llmService = null;
     this.dogApi = null;
 
+    // Servicios
+    this.uiService = new UIService();
+    this.speechService = new SpeechService();
+    this.llmService = new HuggingFaceService();
+    this.dogApi = new DogApi();
+
+    // Exponer servicios globalmente
+    window.speechService = this.speechService;
+    window.monitorUI = new MonitorUI();
+
     // Detectar tipo de dispositivo
     this.isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
     console.log(
@@ -46,136 +56,6 @@ class ScoobyApp {
         this.adjustMobileLayout()
       );
     }
-
-    // Crear un botón temporal para forzar la interacción
-    const createTemporaryButton = () => {
-      const tempButton = document.createElement("button");
-      tempButton.textContent = "🐕 ¡Haz clic para conocer a Scooby!";
-      tempButton.className = "btn btn-lg btn-primary welcome-button";
-      tempButton.style.position = "fixed";
-      tempButton.style.top = "50%";
-      tempButton.style.left = "50%";
-      tempButton.style.transform = "translate(-50%, -50%)";
-      tempButton.style.zIndex = "9999";
-      tempButton.style.padding = "20px 40px";
-      tempButton.style.fontSize = "1.5rem";
-      tempButton.style.borderRadius = "50px";
-      tempButton.style.boxShadow = "0 4px 15px rgba(0,0,0,0.2)";
-      tempButton.style.animation = "pulse 2s infinite";
-      tempButton.style.cursor = "pointer";
-      tempButton.style.background = "#6a1b9a";
-      tempButton.style.border = "none";
-      tempButton.style.color = "white";
-
-      // Añadir estilo de animación
-      const style = document.createElement("style");
-      style.textContent = `
-        @keyframes pulse {
-          0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-          50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 8px 25px rgba(106,27,154,0.4); }
-          100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        }
-        .welcome-button:hover {
-          background: #8e24aa !important;
-          transform: translate(-50%, -50%) scale(1.02) !important;
-        }
-      `;
-      document.head.appendChild(style);
-
-      tempButton.onclick = async () => {
-        // Desactivar el botón inmediatamente para evitar clics múltiples
-        tempButton.disabled = true;
-        tempButton.style.opacity = "0.7";
-        tempButton.textContent = "🐕 Iniciando...";
-
-        try {
-          // Forzar la activación del audio de múltiples maneras
-          await Promise.all([
-            // 1. Activar AudioContext
-            (async () => {
-              try {
-                const audioContext = new (window.AudioContext ||
-                  window.webkitAudioContext)();
-                if (audioContext.state === "suspended") {
-                  await audioContext.resume();
-                }
-                const oscillator = audioContext.createOscillator();
-                oscillator.connect(audioContext.destination);
-                oscillator.frequency.setValueAtTime(
-                  0,
-                  audioContext.currentTime
-                );
-                oscillator.start();
-                oscillator.stop(audioContext.currentTime + 0.01);
-              } catch (e) {
-                console.warn("Error al activar AudioContext:", e);
-              }
-            })(),
-
-            // 2. Precargar el sintetizador de voz
-            (async () => {
-              if (window.speechSynthesis) {
-                try {
-                  window.speechSynthesis.cancel();
-                  const voices = window.speechSynthesis.getVoices();
-                  const utterance = new SpeechSynthesisUtterance("");
-                  utterance.volume = 0;
-                  window.speechSynthesis.speak(utterance);
-                } catch (e) {
-                  console.warn("Error al precargar síntesis:", e);
-                }
-              }
-            })(),
-          ]);
-
-          // Añadir clase de interacción
-          document.body.classList.add("user-interaction");
-
-          // Remover el botón con animación
-          tempButton.style.transition = "all 0.5s ease-out";
-          tempButton.style.opacity = "0";
-          tempButton.style.transform = "translate(-50%, -50%) scale(0.8)";
-
-          setTimeout(() => {
-            tempButton.remove();
-            style.remove();
-          }, 500);
-
-          // Inicializar la aplicación y esperar a que termine
-          await this.initializeApp();
-
-          // Esperar un momento antes de mostrar el mensaje de bienvenida
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // Mostrar el mensaje de bienvenida
-          await this.showWelcomeMessage();
-        } catch (error) {
-          console.error("Error durante la inicialización:", error);
-          // Restaurar el botón en caso de error
-          tempButton.disabled = false;
-          tempButton.style.opacity = "1";
-          tempButton.textContent = "🐕 ¡Intentar de nuevo!";
-        }
-      };
-
-      document.body.appendChild(tempButton);
-    };
-
-    // Mostrar el botón temporal inmediatamente
-    createTemporaryButton();
-
-    // Inicializar Monitor UI
-    const monitorUI = new MonitorUI();
-
-    // Exportar globalmente para uso desde otros servicios
-    window.monitorUI = monitorUI;
-
-    // Servicios
-    this.huggingFaceService = new HuggingFaceService();
-    this.dogApi = new DogApi();
-
-    // Exponer el servicio de voz globalmente para depuración
-    window.speechService = this.speechService;
 
     // Configuraciones
     this.isProcessingMessage = false;
@@ -205,48 +85,70 @@ class ScoobyApp {
     // Reintentos de reconocimiento de voz
     this.speechRetryCount = 0;
     this.maxSpeechRetries = 3;
+
+    // Inicializar cuando el DOM esté listo
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => this.init());
+    } else {
+      this.init();
+    }
   }
 
-  async initializeApp() {
+  async init() {
     try {
-      console.log("Iniciando aplicación...");
-
-      // Inicializar servicios
-      this.uiService = new UIService();
-      this.speechService = new SpeechService();
-      this.llmService = new HuggingFaceService();
-      this.dogApi = new DogApi();
-
-      // Exponer la instancia de SpeechService globalmente para depuración y acceso desde MonitorUI
-      window.speechService = this.speechService;
-
-      // Verificar si hay soporte de voz
-      this.hasVoiceSupport = !!(
-        window.SpeechRecognition || window.webkitSpeechRecognition
-      );
-
-      if (!this.hasVoiceSupport) {
-        console.warn(
-          "Tu navegador no soporta reconocimiento de voz. El modo de texto seguirá funcionando."
-        );
-        this.uiService.showWarning(
-          "Tu navegador no soporta reconocimiento de voz. Puedes usar el modo de texto."
-        );
-      }
+      // Inicializar elementos del DOM
+      this.initDOMElements();
 
       // Configurar eventos
       this.setupEventHandlers();
       this.setupSpeechCallbacks();
 
-      // Verificar conexión con el modelo
+      // Verificar soporte de voz
+      this.hasVoiceSupport = !!(
+        window.SpeechRecognition || window.webkitSpeechRecognition
+      );
+
+      if (!this.hasVoiceSupport) {
+        console.warn("Tu navegador no soporta reconocimiento de voz");
+        this.uiService.showWarning(
+          "Tu navegador no soporta reconocimiento de voz. Puedes usar el modo de texto."
+        );
+      }
+
+      // Verificar conexión
       await this.checkModelConnection();
+
+      // Mostrar botón de bienvenida
+      this.createTemporaryButton();
 
       this.isInitialized = true;
       console.log("Aplicación inicializada correctamente");
     } catch (error) {
-      console.error("Error al inicializar la aplicación:", error);
+      console.error("Error al inicializar:", error);
       this.uiService?.showError("Error al inicializar: " + error.message);
-      throw error; // Propagar el error para que se pueda manejar en el botón
+    }
+  }
+
+  initDOMElements() {
+    // Elementos DOM
+    this.conversation = document.getElementById("conversation");
+    this.textInput = document.getElementById("text-input");
+    this.sendBtn = document.getElementById("send-btn");
+    this.talkBtn = document.getElementById("talk-btn");
+    this.stopBtn = document.getElementById("stop-btn");
+    this.resumeBtn = document.getElementById("resume-btn");
+    this.continueBtn = document.getElementById("continue-btn");
+    this.clearChatBtn = document.getElementById("clear-chat-btn");
+    this.scoobyCalladoVideo = document.getElementById("scooby-callado");
+    this.scoobyHablandoVideo = document.getElementById("scooby-hablando");
+
+    // Ajustar layout para móviles
+    if (this.isMobile) {
+      this.adjustMobileLayout();
+      window.addEventListener("resize", () => this.adjustMobileLayout());
+      window.addEventListener("orientationchange", () =>
+        this.adjustMobileLayout()
+      );
     }
   }
 
@@ -1453,6 +1355,75 @@ class ScoobyApp {
       console.error("UIService no disponible");
       return null;
     }
+  }
+
+  createTemporaryButton() {
+    const tempButton = document.createElement("button");
+    tempButton.textContent = "🐕 ¡Haz clic para conocer a Scooby!";
+    tempButton.className = "btn btn-lg btn-primary welcome-button";
+    tempButton.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      padding: 20px 40px;
+      font-size: 1.5rem;
+      border-radius: 50px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      animation: pulse 2s infinite;
+      cursor: pointer;
+      background: #6a1b9a;
+      border: none;
+      color: white;
+    `;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes pulse {
+        0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 8px 25px rgba(106,27,154,0.4); }
+        100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+      }
+      .welcome-button:hover {
+        background: #8e24aa !important;
+        transform: translate(-50%, -50%) scale(1.02) !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    tempButton.onclick = async () => {
+      try {
+        // Desactivar el botón
+        tempButton.disabled = true;
+        tempButton.style.opacity = "0.7";
+        tempButton.textContent = "🐕 Iniciando...";
+
+        // Activar audio
+        await this.initAudio();
+
+        // Animar y remover el botón
+        tempButton.style.transition = "all 0.5s ease-out";
+        tempButton.style.opacity = "0";
+        tempButton.style.transform = "translate(-50%, -50%) scale(0.8)";
+
+        setTimeout(() => {
+          tempButton.remove();
+          style.remove();
+        }, 500);
+
+        // Mostrar mensaje de bienvenida
+        await this.showWelcomeMessage();
+      } catch (error) {
+        console.error("Error al iniciar:", error);
+        tempButton.disabled = false;
+        tempButton.style.opacity = "1";
+        tempButton.textContent = "🐕 ¡Intentar de nuevo!";
+        this.uiService.showError("Error al iniciar: " + error.message);
+      }
+    };
+
+    document.body.appendChild(tempButton);
   }
 }
 
