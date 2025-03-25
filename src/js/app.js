@@ -217,6 +217,9 @@ class ScoobyApp {
       this.llmService = new HuggingFaceService();
       this.dogApi = new DogApi();
 
+      // Exponer la instancia de SpeechService globalmente para depuración y acceso desde MonitorUI
+      window.speechService = this.speechService;
+
       // Verificar si hay soporte de voz
       this.hasVoiceSupport = !!(
         window.SpeechRecognition || window.webkitSpeechRecognition
@@ -725,17 +728,42 @@ class ScoobyApp {
 
     // Botón de hablar
     this.talkBtn.addEventListener("click", () => {
+      // Verificar que estemos inicializados y el reconocimiento esté disponible
+      if (!this.isInitialized) {
+        this.uiService.showWarning(
+          "Espera un momento, la aplicación se está iniciando..."
+        );
+        return;
+      }
+
+      if (!this.hasVoiceSupport) {
+        this.uiService.showWarning(
+          "Tu navegador no soporta reconocimiento de voz. Usa el modo de texto."
+        );
+        return;
+      }
+
+      if (this.isProcessing) {
+        console.log(
+          "Ya hay un proceso en curso, no se puede iniciar reconocimiento"
+        );
+        return;
+      }
+
+      console.log("Iniciando reconocimiento desde botón de hablar");
       this.startListening();
     });
 
     // Botón de detener
     this.stopBtn.addEventListener("click", () => {
+      console.log("Clic en botón de detener");
       this.stopListening();
     });
 
     // Botón para continuar respuesta
     if (this.continueBtn) {
       this.continueBtn.addEventListener("click", () => {
+        console.log("Clic en botón continuar");
         this.continuarRespuesta(
           "(continúa tu respuesta anterior)",
           this.lastResponseText
@@ -1343,6 +1371,87 @@ class ScoobyApp {
     } catch (error) {
       console.error("Error en diagnóstico:", error);
       return results;
+    }
+  }
+
+  /**
+   * Inicia el reconocimiento de voz
+   */
+  startListening() {
+    if (!this.speechService || this.isProcessing) {
+      console.log(
+        "No se puede iniciar reconocimiento (servicio no disponible o procesando)"
+      );
+      return;
+    }
+
+    console.log("Iniciando reconocimiento de voz...");
+    this.speechService.startListening();
+  }
+
+  /**
+   * Detiene el reconocimiento de voz
+   */
+  stopListening() {
+    if (!this.speechService) return;
+
+    console.log("Deteniendo reconocimiento de voz...");
+    this.speechService.stopListening();
+
+    // También detener la síntesis si está en curso
+    if (this.isSpeaking) {
+      this.speechService.stopSpeaking();
+      this.isSpeaking = false;
+    }
+  }
+
+  /**
+   * Reproduce el video de Scooby hablando
+   */
+  playScoobyTalking() {
+    if (this.scoobyCalladoVideo && this.scoobyHablandoVideo) {
+      this.scoobyCalladoVideo.classList.add("d-none");
+      this.scoobyHablandoVideo.classList.remove("d-none");
+      this.scoobyHablandoVideo
+        .play()
+        .catch((err) => console.error("Error al reproducir video:", err));
+    }
+  }
+
+  /**
+   * Muestra el Scooby en silencio
+   */
+  playScoobyQuiet() {
+    if (this.scoobyCalladoVideo && this.scoobyHablandoVideo) {
+      this.scoobyHablandoVideo.classList.add("d-none");
+      this.scoobyCalladoVideo.classList.remove("d-none");
+      this.scoobyCalladoVideo
+        .play()
+        .catch((err) => console.error("Error al reproducir video:", err));
+    }
+  }
+
+  /**
+   * Añade un mensaje del sistema
+   */
+  addSystemMessage(message) {
+    if (this.uiService) {
+      return this.uiService.addSystemMessage(message);
+    } else {
+      console.error("UIService no disponible");
+      return null;
+    }
+  }
+
+  /**
+   * Añade un mensaje del usuario
+   */
+  addUserMessage(message) {
+    if (this.uiService) {
+      return this.uiService.addUserMessage(message);
+    } else {
+      console.error("UIService no disponible");
+      return null;
     }
   }
 }
