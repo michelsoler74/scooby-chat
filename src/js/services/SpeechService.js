@@ -234,6 +234,12 @@ class SpeechService {
 
       const result = await response.json();
       console.log("Resultado del reconocimiento:", result);
+
+      // Registrar llamada a la API
+      if (window.monitorUI) {
+        window.monitorUI.trackCall("stt");
+      }
+
       return result.text || "";
     } catch (error) {
       console.error("Error en reconocimiento con Hugging Face:", error);
@@ -443,6 +449,12 @@ class SpeechService {
 
       const audioArrayBuffer = await response.arrayBuffer();
       console.log("Síntesis con Hugging Face completada exitosamente");
+
+      // Registrar llamada a la API
+      if (window.monitorUI) {
+        window.monitorUI.trackCall("tts");
+      }
+
       return audioArrayBuffer;
     } catch (error) {
       console.error("Error al sintetizar con Hugging Face:", error);

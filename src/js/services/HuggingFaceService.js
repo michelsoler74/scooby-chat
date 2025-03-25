@@ -246,6 +246,12 @@ Usuario: ${userMessage}
       response_text = this.formatScoobyResponse(response_text);
 
       this.addToHistory("assistant", response_text);
+
+      // Registrar llamada a la API
+      if (window.monitorUI) {
+        window.monitorUI.trackCall("chat");
+      }
+
       return response_text;
     } catch (error) {
       console.error("Error en getResponse:", error);

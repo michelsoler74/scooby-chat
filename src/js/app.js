@@ -1,6 +1,7 @@
 import SpeechService from "./services/SpeechService.js";
 import HuggingFaceService from "./services/HuggingFaceService.js";
 import { UIService } from "./services/UIService.js";
+import MonitorUI from "./utils/MonitorUI.js";
 
 class ScoobyApp {
   constructor() {
@@ -156,6 +157,12 @@ class ScoobyApp {
 
     // Mostrar el botón temporal inmediatamente
     createTemporaryButton();
+
+    // Inicializar Monitor UI
+    const monitorUI = new MonitorUI();
+
+    // Exportar globalmente para uso desde otros servicios
+    window.monitorUI = monitorUI;
   }
 
   async initializeApp() {
