@@ -22,6 +22,13 @@ class MonitorUI {
     // Instanciar servicio de monitoreo
     this.monitorService = new MonitorService();
 
+    // Nuevo: Guardar información de errores
+    this.errors = {
+      stt: 0,
+      tts: 0,
+      chat: 0,
+    };
+
     // Inicializar eventos
     this.initEvents();
   }
@@ -61,6 +68,7 @@ class MonitorUI {
         )
       ) {
         this.monitorService.resetCounters();
+        this.errors = { stt: 0, tts: 0, chat: 0 }; // Reiniciar errores también
         this.updateStats();
       }
     });
@@ -122,6 +130,49 @@ class MonitorUI {
     } else {
       this.tokenProgressElement.className = "progress-bar";
     }
+
+    // Comprobar si hay API key configurada
+    const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+    if (!apiKey) {
+      // Mostrar alerta en panel si no hay API key
+      const apiMessage = document.getElementById("api-key-message");
+      if (apiMessage) {
+        apiMessage.style.display = "block";
+      }
+    }
+
+    // Actualizar estado de reconocimiento de voz si existe
+    this.updateSpeechStatus();
+  }
+
+  /**
+   * Actualiza la información sobre el estado del reconocimiento de voz
+   */
+  updateSpeechStatus() {
+    const micStatus = document.getElementById("mic-status");
+    if (micStatus) {
+      const speechService = window.speechService; // Acceder al servicio global
+
+      if (speechService) {
+        const statusText = document.createElement("small");
+
+        if (
+          speechService.useHuggingFace === false &&
+          speechService.HUGGINGFACE_API_KEY
+        ) {
+          statusText.className = "text-warning";
+          statusText.textContent =
+            "⚠️ API Hugging Face desactivada temporalmente por errores";
+          micStatus.innerHTML = "";
+          micStatus.appendChild(statusText);
+        } else if (speechService.huggingFaceFailures > 0) {
+          statusText.className = "text-warning";
+          statusText.textContent = `⚠️ API Hugging Face: ${speechService.huggingFaceFailures} errores recientes`;
+          micStatus.innerHTML = "";
+          micStatus.appendChild(statusText);
+        }
+      }
+    }
   }
 
   /**
@@ -130,6 +181,17 @@ class MonitorUI {
    */
   trackCall(type) {
     this.monitorService.trackCall(type);
+  }
+
+  /**
+   * Registra un error en las llamadas a la API
+   * @param {string} type - Tipo de error ('chat', 'tts', o 'stt')
+   */
+  trackError(type) {
+    if (this.errors[type] !== undefined) {
+      this.errors[type]++;
+      console.log(`Error en ${type} registrado. Total: ${this.errors[type]}`);
+    }
   }
 }
 

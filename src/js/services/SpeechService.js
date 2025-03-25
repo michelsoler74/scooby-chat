@@ -16,6 +16,11 @@ class SpeechService {
       localStorage.getItem("HUGGINGFACE_API_KEY") || "";
     this.TTS_MODEL = "facebook/mms-tts-spa"; // Modelo gratuito para español
 
+    // NUEVO: Control de fallos para la API
+    this.huggingFaceFailures = 0;
+    this.maxHuggingFaceFailures = 2; // Después de 2 fallos, usar solo Web Speech
+    this.useHuggingFace = this.HUGGINGFACE_API_KEY !== "";
+
     // Callbacks
     this.onSpeechStart = null;
     this.onSpeechEnd = null;
@@ -31,6 +36,10 @@ class SpeechService {
     // Inicialización
     this.initSynthesis();
     this.initRecognition();
+
+    console.log(
+      `SpeechService inicializado, useHuggingFace: ${this.useHuggingFace}`
+    );
   }
 
   initSynthesis() {
@@ -201,9 +210,9 @@ class SpeechService {
    * @returns {Promise<string>} - Texto transcrito
    */
   async recognizeWithHuggingFace(audioBlob) {
-    if (!this.HUGGINGFACE_API_KEY) {
+    if (!this.HUGGINGFACE_API_KEY || !this.useHuggingFace) {
       console.warn(
-        "No hay API key para Hugging Face, no se puede usar la API de reconocimiento"
+        "No hay API key para Hugging Face o se ha desactivado, no se puede usar la API de reconocimiento"
       );
       return null;
     }
@@ -227,10 +236,26 @@ class SpeechService {
       );
 
       if (!response.ok) {
+        this.huggingFaceFailures++;
+        console.error(
+          `Error en Hugging Face STT: ${response.status} - Fallos: ${this.huggingFaceFailures}`
+        );
+
+        // Si hay demasiados fallos, desactivar Hugging Face temporalmente
+        if (this.huggingFaceFailures >= this.maxHuggingFaceFailures) {
+          console.warn(
+            `Demasiados fallos (${this.huggingFaceFailures}), desactivando Hugging Face temporalmente`
+          );
+          this.useHuggingFace = false;
+        }
+
         throw new Error(
           `Error en Hugging Face STT: ${response.status} ${response.statusText}`
         );
       }
+
+      // Éxito, resetear contador de fallos
+      this.huggingFaceFailures = 0;
 
       const result = await response.json();
       console.log("Resultado del reconocimiento:", result);
@@ -263,12 +288,16 @@ class SpeechService {
         this.onSpeechStart();
       }
 
-      // Si tenemos API key de Hugging Face, usar una implementación personalizada
-      if (this.HUGGINGFACE_API_KEY) {
+      // Si tenemos API key de Hugging Face y no ha habido demasiados fallos, usarla
+      if (this.HUGGINGFACE_API_KEY && this.useHuggingFace) {
         try {
           console.log("Iniciando grabación para Hugging Face Whisper...");
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
           });
           const mediaRecorder = new MediaRecorder(stream);
           const audioChunks = [];
@@ -288,11 +317,14 @@ class SpeechService {
             );
 
             if (recognizedText) {
-              console.log("Texto reconocido:", recognizedText);
+              console.log("Texto reconocido con Hugging Face:", recognizedText);
               if (this.onResult) {
                 this.onResult(recognizedText);
               }
             } else {
+              console.log(
+                "Fallo en reconocimiento con Hugging Face, intentando con Web Speech..."
+              );
               // Fallback a reconocimiento local si falló
               this.startWebSpeechRecognition();
             }
@@ -305,15 +337,22 @@ class SpeechService {
             }
           });
 
-          // Iniciar grabación por 5 segundos
+          // Iniciar grabación por 7 segundos (aumentado para mejor captura)
           mediaRecorder.start();
-          setTimeout(() => mediaRecorder.stop(), 5000);
+          console.log("Grabación iniciada, escuchando durante 7 segundos");
+          setTimeout(() => {
+            if (mediaRecorder.state === "recording") {
+              console.log("Deteniendo grabación después de 7s");
+              mediaRecorder.stop();
+            }
+          }, 7000);
         } catch (error) {
           console.error("Error en grabación para Hugging Face:", error);
           // Fallback a la implementación del navegador
           this.startWebSpeechRecognition();
         }
       } else {
+        console.log("Usando reconocimiento de Web Speech directamente");
         // Usar la implementación del navegador
         this.startWebSpeechRecognition();
       }
@@ -348,7 +387,12 @@ class SpeechService {
       // Configuración
       this.recognition.lang = this.selectedLanguage;
       this.recognition.continuous = false;
-      this.recognition.interimResults = false;
+      this.recognition.interimResults = true;
+
+      console.log(
+        "Iniciando Web Speech Recognition con idioma:",
+        this.selectedLanguage
+      );
 
       // Eventos
       this.recognition.onstart = () => {
@@ -356,11 +400,14 @@ class SpeechService {
       };
 
       this.recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        console.log("Texto reconocido:", text);
+        const finalTranscript = Array.from(event.results)
+          .map((result) => result[0].transcript)
+          .join(" ");
 
-        if (this.onResult) {
-          this.onResult(text);
+        console.log("Texto reconocido con Web Speech:", finalTranscript);
+
+        if (this.onResult && finalTranscript.trim()) {
+          this.onResult(finalTranscript);
         }
       };
 
