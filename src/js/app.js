@@ -96,36 +96,50 @@ class ScoobyApp {
 
   async init() {
     try {
-      // Inicializar elementos del DOM
+      console.log("Iniciando aplicación...");
+
+      // 1. Verificar si ya está inicializado
+      if (this.isInitialized) {
+        console.log("La aplicación ya está inicializada");
+        return;
+      }
+
+      // 2. Inicializar elementos del DOM
       this.initDOMElements();
+      console.log("Elementos DOM inicializados");
 
-      // Configurar eventos
+      // 3. Configurar eventos (antes de mostrar el botón)
       this.setupEventHandlers();
-      this.setupSpeechCallbacks();
+      console.log("Manejadores de eventos configurados");
 
-      // Verificar soporte de voz
+      // 4. Verificar soporte de voz y configurar callbacks
       this.hasVoiceSupport = !!(
         window.SpeechRecognition || window.webkitSpeechRecognition
+      );
+      this.setupSpeechCallbacks();
+      console.log(
+        `Soporte de voz: ${
+          this.hasVoiceSupport ? "Disponible" : "No disponible"
+        }`
       );
 
       if (!this.hasVoiceSupport) {
         console.warn("Tu navegador no soporta reconocimiento de voz");
-        this.uiService.showWarning(
-          "Tu navegador no soporta reconocimiento de voz. Puedes usar el modo de texto."
-        );
+        // Solo mostramos la advertencia después de que el usuario interactúe
       }
 
-      // Verificar conexión
-      await this.checkModelConnection();
-
-      // Mostrar botón de bienvenida
+      // 5. Mostrar el botón de bienvenida (importante: esto debe ir antes de checkModelConnection)
       this.createTemporaryButton();
+      console.log("Botón de bienvenida creado");
 
-      this.isInitialized = true;
-      console.log("Aplicación inicializada correctamente");
+      // El resto de la inicialización se hará cuando el usuario haga clic en el botón
     } catch (error) {
-      console.error("Error al inicializar:", error);
-      this.uiService?.showError("Error al inicializar: " + error.message);
+      console.error("Error durante la inicialización:", error);
+      // Intentar reiniciar la aplicación si hay un error
+      setTimeout(() => {
+        alert("Hubo un problema al iniciar Scooby. Intentando reiniciar...");
+        location.reload();
+      }, 1000);
     }
   }
 
@@ -1358,6 +1372,9 @@ class ScoobyApp {
   }
 
   createTemporaryButton() {
+    console.log("Creando botón de bienvenida...");
+
+    // Crear botón con estilo
     const tempButton = document.createElement("button");
     tempButton.textContent = "🐕 ¡Haz clic para conocer a Scooby!";
     tempButton.className = "btn btn-lg btn-primary welcome-button";
@@ -1378,6 +1395,7 @@ class ScoobyApp {
       color: white;
     `;
 
+    // Añadir animación
     const style = document.createElement("style");
     style.textContent = `
       @keyframes pulse {
@@ -1392,17 +1410,21 @@ class ScoobyApp {
     `;
     document.head.appendChild(style);
 
+    // Manejar clic
     tempButton.onclick = async () => {
       try {
-        // Desactivar el botón
+        console.log("Botón de bienvenida clickeado, iniciando Scooby...");
+
+        // 1. Desactivar el botón
         tempButton.disabled = true;
         tempButton.style.opacity = "0.7";
         tempButton.textContent = "🐕 Iniciando...";
 
-        // Activar audio
+        // 2. Inicializar audio
         await this.initAudio();
+        console.log("Audio inicializado correctamente");
 
-        // Animar y remover el botón
+        // 3. Animar y remover el botón
         tempButton.style.transition = "all 0.5s ease-out";
         tempButton.style.opacity = "0";
         tempButton.style.transform = "translate(-50%, -50%) scale(0.8)";
@@ -1412,18 +1434,102 @@ class ScoobyApp {
           style.remove();
         }, 500);
 
-        // Mostrar mensaje de bienvenida
-        await this.showWelcomeMessage();
+        // 4. Verificar conexión con el modelo
+        try {
+          await this.checkModelConnection();
+          console.log("Conexión con modelo verificada");
+        } catch (connError) {
+          console.error("Error de conexión:", connError);
+          this.uiService.showWarning(
+            "La conexión con el modelo está fallando. Algunas funciones pueden no estar disponibles."
+          );
+        }
+
+        // 5. Marcar como inicializado
+        this.isInitialized = true;
+        console.log("Aplicación inicializada completamente");
+
+        // 6. Mostrar mensaje de bienvenida
+        console.log("Mostrando mensaje de bienvenida...");
+
+        // Si no hay conexión, mostrar un mensaje alternativo
+        if (!this.isConnected) {
+          this.uiService.addSystemMessage(
+            "👋 ¡Hola! Soy Scooby. Parece que tengo problemas para conectarme. " +
+              "Intenta hacer clic en el botón 'Diagnosticar micrófono' para revisar la conexión."
+          );
+        } else {
+          await this.showWelcomeMessage();
+        }
       } catch (error) {
-        console.error("Error al iniciar:", error);
+        console.error("Error al iniciar Scooby:", error);
+
+        // Mostrar error al usuario
+        alert(
+          "Hubo un problema al iniciar a Scooby: " +
+            error.message +
+            "\nIntenta recargar la página."
+        );
+
+        // Restaurar el botón
         tempButton.disabled = false;
         tempButton.style.opacity = "1";
         tempButton.textContent = "🐕 ¡Intentar de nuevo!";
-        this.uiService.showError("Error al iniciar: " + error.message);
       }
     };
 
+    // Añadir el botón al DOM
     document.body.appendChild(tempButton);
+    console.log("Botón de bienvenida añadido al DOM");
+  }
+
+  /**
+   * Inicializa el contexto de audio y precarga la síntesis de voz
+   */
+  async initAudio() {
+    console.log("Inicializando contexto de audio...");
+    try {
+      // 1. Activar AudioContext
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+        console.log("AudioContext resumido correctamente");
+      }
+
+      // Crear un breve sonido silencioso para inicializar
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 0.01; // Casi silencioso
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.1);
+
+      // 2. Precargar el sintetizador de voz
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel(); // Limpiar cualquier síntesis pendiente
+
+        // Forzar la carga de voces
+        window.speechSynthesis.getVoices();
+
+        // Hablar un texto vacío para inicializar el motor
+        const utterance = new SpeechSynthesisUtterance("");
+        utterance.volume = 0;
+        window.speechSynthesis.speak(utterance);
+
+        console.log("Sintetizador de voz precargado");
+      }
+
+      // Forzar una interacción simulada con la página
+      document.body.click();
+
+      return true;
+    } catch (e) {
+      console.error("Error al inicializar audio:", e);
+      return false;
+    }
   }
 }
 
