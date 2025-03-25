@@ -63,6 +63,61 @@
         visibility: visible;
         transform: translateY(0);
       }
+
+      /* Estilo para el panel de configuración */
+      .config-panel {
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .config-panel h5 {
+        margin-top: 0;
+        color: #3f51b5;
+      }
+
+      .config-panel .form-group {
+        margin-bottom: 10px;
+      }
+
+      .config-panel label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+
+      .api-key-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .save-config-btn {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .save-config-btn:hover {
+        background-color: #45a049;
+      }
+
+      .config-toggle {
+        background-color: #3f51b5;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 10px;
+      }
     </style>
   </head>
   <body>
@@ -77,6 +132,13 @@
             title="Consejos de uso"
           >
             <span>❓</span>
+          </button>
+          <button
+            id="config-toggle"
+            class="btn btn-sm btn-primary config-toggle"
+            title="Configuración"
+          >
+            <span>⚙️</span>
           </button>
 
           <!-- Tooltip de ayuda (inicialmente oculto) -->
@@ -99,6 +161,26 @@
           </div>
         </div>
       </header>
+
+      <!-- Panel de configuración (inicialmente oculto) -->
+      <div id="config-panel" class="config-panel">
+        <h5>Configuración de API</h5>
+        <div class="form-group">
+          <label for="huggingface-api-key">API Key de Hugging Face:</label>
+          <input
+            type="text"
+            id="huggingface-api-key"
+            class="api-key-input"
+            placeholder="Ingresa tu API key de Hugging Face"
+          />
+          <small
+            >Se requiere para síntesis de voz y procesamiento de lenguaje</small
+          >
+        </div>
+        <button id="save-config-btn" class="save-config-btn">
+          Guardar configuración
+        </button>
+      </div>
 
       <!-- Main Content -->
       <main>
@@ -331,6 +413,43 @@
 
           setVh();
           window.addEventListener("resize", setVh);
+        }
+
+        // Configurar el panel de configuración
+        const configToggle = document.getElementById("config-toggle");
+        const configPanel = document.getElementById("config-panel");
+        const saveConfigBtn = document.getElementById("save-config-btn");
+        const huggingfaceApiKeyInput = document.getElementById(
+          "huggingface-api-key"
+        );
+
+        // Mostrar la API Key guardada, si existe
+        huggingfaceApiKeyInput.value =
+          localStorage.getItem("HUGGINGFACE_API_KEY") || "";
+
+        if (configToggle && configPanel) {
+          configToggle.addEventListener("click", function () {
+            configPanel.style.display =
+              configPanel.style.display === "none" ||
+              configPanel.style.display === ""
+                ? "block"
+                : "none";
+          });
+        }
+
+        if (saveConfigBtn) {
+          saveConfigBtn.addEventListener("click", function () {
+            const apiKey = huggingfaceApiKeyInput.value.trim();
+            if (apiKey) {
+              localStorage.setItem("HUGGINGFACE_API_KEY", apiKey);
+              alert(
+                "¡Configuración guardada! Recarga la página para aplicar los cambios."
+              );
+              configPanel.style.display = "none";
+            } else {
+              alert("Por favor, ingresa una API key válida.");
+            }
+          });
         }
       });
     </script>
