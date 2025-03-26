@@ -1047,98 +1047,98 @@ class ScoobyApp {
    * Continúa una respuesta que puede haber quedado incompleta
    */
   async continuarRespuesta(userMessage, prevResponse) {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {
+      console.log(
+        "Ya hay un proceso en curso, ignorando solicitud de continuación"
+      );
+      this.uiService.showWarning(
+        "Por favor espera, ya hay un proceso en curso..."
+      );
+      return;
+    }
+
+    console.log("Iniciando continuación de respuesta");
 
     // Actualizar estado
     this.isProcessing = true;
+    this.isContinuing = true;
     this.uiService.updateButtonStates(false, true, this.isSpeaking);
     this.uiService.continuationInProgress = true;
 
     try {
-      // Mostrar indicador de continuación
-      this.uiService.addMessage(
+      // Mostrar indicador visual
+      const thinkingMessage = this.uiService.addMessage(
         "Sistema",
-        "💭 Continuando la respuesta anterior..."
+        "💭 Scooby está pensando más sobre esto..."
       );
 
-      // Extraer las primeras palabras de la respuesta anterior para verificar contexto
-      const previousTopicIndicator = prevResponse.split(/[.!?]/)[0].trim();
+      // Preparar el prompt para la continuación
+      const promptContinuacion = userMessage || "Cuéntame más sobre esto";
+      console.log("Prompt de continuación:", promptContinuacion);
 
-      // Añadir texto para indicar que queremos continuación
-      const promptContinuacion =
-        userMessage + " (continúa tu respuesta anterior)";
+      // Obtener respuesta adicional
+      const response = await this.llmService.getResponse(promptContinuacion, {
+        prevResponse: prevResponse, // Pasar el contexto previo
+        isContinuation: true,
+      });
 
-      // Obtener respuesta
-      const response = await this.llmService.getResponse(promptContinuacion);
+      // Eliminar mensaje de pensando
+      if (thinkingMessage && thinkingMessage.parentNode) {
+        thinkingMessage.parentNode.removeChild(thinkingMessage);
+      }
 
       if (response && response.trim()) {
-        // Verificar si la respuesta está relacionada con el tema anterior
-        const isRelated = this.checkResponseRelevance(prevResponse, response);
+        // Agregar nueva respuesta al chat
+        const messageElement = this.uiService.addSystemMessage(response);
+        this.lastResponseText = response; // Guardar para posibles continuaciones futuras
 
-        if (!isRelated) {
-          console.warn(
-            "La continuación parece no estar relacionada con la respuesta anterior"
-          );
-          // Añadir un mensaje sutil de sistema
-          this.uiService.addMessage(
-            "Sistema",
-            "📝 Nota: Scooby quizás ha cambiado de tema. Si quieres seguir con el tema anterior, intenta hacer una pregunta más específica."
-          );
-        }
+        // Scrollear hacia abajo para mostrar la nueva respuesta
+        this.uiService.scrollToBottom();
 
-        // Mostrar la continuación como un nuevo mensaje
-        this.uiService.addSystemMessage(response);
-
-        // Sintetizar voz si está disponible
+        // Reproducir respuesta con voz
         if (this.speechService) {
-          console.log("INICIANDO SÍNTESIS DE VOZ PARA CONTINUACIÓN");
           try {
-            // Mostrar el Scooby hablando visualmente
+            // Mostrar a Scooby hablando
             this.uiService.showSpeakingScooby();
             this.isSpeaking = true;
-            this.uiService.updateButtonStates(false, false, true);
 
-            // Pequeña espera para asegurar que la UI se ha actualizado
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            // Esperar un momento para sincronización
+            await new Promise((resolve) => setTimeout(resolve, 300));
 
-            // Intentar reproducir la voz y loggear todo el proceso
-            console.log(
-              "Reproduciendo continuación en voz alta:",
-              response.substring(0, 50) + "..."
+            // Intentar reproducir el audio
+            await this.speechService.speak(response, {
+              volume: 1.0,
+              force: true,
+              rate: 0.9,
+            });
+
+            // Mantener animación un poco más
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          } catch (voiceError) {
+            console.error(
+              "Error al reproducir continuación con voz:",
+              voiceError
             );
-
-            const speakingPromise = this.speechService.speak(response);
-            await speakingPromise;
-
-            // Mantener Scooby animado un poco más
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            console.log("Continuación reproducida correctamente");
-          } catch (error) {
-            console.error("Error al sintetizar voz de continuación:", error);
           } finally {
-            // Asegurarnos de restablecer el estado correcto
+            // Restaurar estado normal
             this.isSpeaking = false;
             this.uiService.showSilentScooby();
-            this.uiService.updateButtonStates(false, false, false);
-            console.log("Finalizada síntesis de voz de continuación");
           }
-        } else {
-          console.error(
-            "El servicio de voz no está disponible para síntesis de continuación"
-          );
         }
       } else {
-        throw new Error("No se recibió respuesta del modelo");
+        throw new Error("No se pudo obtener más información");
       }
     } catch (error) {
       console.error("Error al continuar respuesta:", error);
-      this.uiService.showError("Error: " + error.message);
+      this.uiService.showError(
+        "Lo siento, no pude continuar: " + error.message
+      );
       this.uiService.showSilentScooby();
     } finally {
-      // Actualizar estado
+      // Restaurar estado
       this.isProcessing = false;
       this.isSpeaking = false;
+      this.isContinuing = false;
       this.uiService.continuationInProgress = false;
       this.uiService.updateButtonStates(false, false, false);
     }
@@ -1362,34 +1362,152 @@ class ScoobyApp {
   }
 
   /**
-   * Inicia el reconocimiento de voz
+   * Inicia el reconocimiento de voz con manejo mejorado de errores
    */
   startListening() {
-    if (!this.speechService || this.isProcessing) {
+    if (!this.speechService) {
+      console.error(
+        "No se puede iniciar reconocimiento: servicio no disponible"
+      );
+      this.uiService.showError(
+        "Error: el servicio de reconocimiento de voz no está disponible"
+      );
+      return;
+    }
+
+    if (this.isProcessing || this.isSpeaking) {
       console.log(
-        "No se puede iniciar reconocimiento (servicio no disponible o procesando)"
+        "No se puede iniciar reconocimiento mientras hay otro proceso en curso"
+      );
+      this.uiService.showWarning(
+        "Por favor espera a que termine el proceso actual"
       );
       return;
     }
 
     console.log("Iniciando reconocimiento de voz...");
-    this.speechService.startListening();
+
+    try {
+      // Mostrar feedback visual
+      if (this.talkBtn) {
+        this.talkBtn.classList.add("btn-recording");
+        this.talkBtn.classList.remove("btn-success");
+        this.talkBtn.innerHTML =
+          '<i class="fas fa-microphone-alt me-1"></i> Escuchando...';
+      }
+
+      if (this.stopBtn) {
+        this.stopBtn.disabled = false;
+      }
+
+      // Verificar permisos primero (puede ser necesario en algunos navegadores)
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          // Detener el stream inmediatamente, solo lo necesitamos para verificar permisos
+          stream.getTracks().forEach((track) => track.stop());
+
+          // Una vez confirmados los permisos, iniciar el reconocimiento
+          this.speechService.startListening();
+
+          // Mostrar mensaje de estado
+          this.uiService.addMessage(
+            "Sistema",
+            "🎤 Escuchando... Di algo como '¿Qué puedes hacer?' o '¡Hola Scooby!'"
+          );
+        })
+        .catch((error) => {
+          console.error("Error al acceder al micrófono:", error);
+
+          // Restaurar estado visual
+          if (this.talkBtn) {
+            this.talkBtn.classList.remove("btn-recording");
+            this.talkBtn.classList.add("btn-success");
+            this.talkBtn.innerHTML =
+              '<i class="fas fa-microphone me-1"></i> Hablar';
+          }
+
+          if (this.stopBtn) {
+            this.stopBtn.disabled = true;
+          }
+
+          // Mostrar error específico según el tipo
+          if (error.name === "NotAllowedError") {
+            this.uiService.showError(
+              "Por favor, permite el acceso al micrófono para poder usar el reconocimiento de voz"
+            );
+          } else if (error.name === "NotFoundError") {
+            this.uiService.showError(
+              "No se detectó ningún micrófono. Por favor, conecta uno e intenta de nuevo"
+            );
+          } else {
+            this.uiService.showError(
+              `Error al iniciar reconocimiento: ${error.message}`
+            );
+          }
+        });
+    } catch (error) {
+      console.error("Error al iniciar reconocimiento de voz:", error);
+      this.uiService.showError("No se pudo iniciar el reconocimiento de voz");
+
+      // Restaurar estado visual
+      if (this.talkBtn) {
+        this.talkBtn.classList.remove("btn-recording");
+        this.talkBtn.classList.add("btn-success");
+      }
+
+      if (this.stopBtn) {
+        this.stopBtn.disabled = true;
+      }
+    }
   }
 
   /**
-   * Detiene el reconocimiento de voz
+   * Detiene el reconocimiento de voz con mejor manejo de estado
    */
   stopListening() {
-    if (!this.speechService) return;
-
     console.log("Deteniendo reconocimiento de voz...");
-    this.speechService.stopListening();
 
-    // También detener la síntesis si está en curso
-    if (this.isSpeaking) {
-      this.speechService.stopSpeaking();
+    // Restablecer el estado visual independientemente de si hay servicio
+    if (this.talkBtn) {
+      this.talkBtn.classList.remove("btn-recording");
+      this.talkBtn.classList.add("btn-success");
+      this.talkBtn.innerHTML = '<i class="fas fa-microphone me-1"></i> Hablar';
+      this.talkBtn.disabled = false;
+    }
+
+    if (this.stopBtn) {
+      this.stopBtn.disabled = true;
+    }
+
+    // Detener la síntesis de voz si está en curso
+    if (this.isSpeaking && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+        console.log("Síntesis de voz cancelada");
+      } catch (e) {
+        console.warn("Error al cancelar síntesis de voz:", e);
+      }
+      this.uiService.showSilentScooby();
       this.isSpeaking = false;
     }
+
+    // Detener el reconocimiento si el servicio existe
+    if (this.speechService) {
+      try {
+        this.speechService.stopListening();
+        console.log("Reconocimiento de voz detenido correctamente");
+      } catch (error) {
+        console.error("Error al detener reconocimiento:", error);
+      }
+    } else {
+      console.warn(
+        "No se puede detener reconocimiento: servicio no disponible"
+      );
+    }
+
+    // Informar al usuario
+    this.uiService.addMessage("Sistema", "🛑 Reconocimiento de voz detenido");
   }
 
   /**
@@ -1582,51 +1700,141 @@ class ScoobyApp {
 
   /**
    * Inicializa el contexto de audio y precarga la síntesis de voz
+   * Versión mejorada con múltiples intentos y mejor manejo de errores
    */
   async initAudio() {
     console.log("Inicializando contexto de audio...");
-    try {
-      // 1. Activar AudioContext
-      const audioContext = new (window.AudioContext ||
-        window.webkitAudioContext)();
-      if (audioContext.state === "suspended") {
-        await audioContext.resume();
-        console.log("AudioContext resumido correctamente");
+    const maxAttempts = 3;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`Intento ${attempt}/${maxAttempts} de inicializar audio`);
+
+        // 1. Forzar interacción para desbloquear políticas restrictivas
+        document.body.click();
+        document.documentElement.click();
+
+        // 2. Activar AudioContext con diferentes estrategias
+        const audioContext = new (window.AudioContext ||
+          window.webkitAudioContext)();
+
+        if (audioContext.state === "suspended") {
+          // Intentar resumir con diferentes métodos
+          try {
+            // Método 1: Promesa estándar
+            await audioContext.resume();
+            console.log("AudioContext resumido correctamente");
+          } catch (resumeError) {
+            console.warn("Error al resumir AudioContext:", resumeError);
+
+            // Método 2: Evento de interacción
+            document.body.addEventListener("click", function resumeOnce() {
+              audioContext.resume().then(() => {
+                console.log("AudioContext resumido por clic");
+                document.body.removeEventListener("click", resumeOnce);
+              });
+            });
+
+            // Simular clic
+            document.body.click();
+          }
+        }
+
+        // 3. Crear un breve sonido silencioso
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        // Volumen extremadamente bajo (prácticamente inaudible)
+        gainNode.gain.value = 0.001;
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+
+        // Ejecutar muy brevemente
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.05);
+
+        // 4. Múltiples estrategias para inicializar el sintetizador de voz
+        if (window.speechSynthesis) {
+          // 4.1 Cancelar cualquier síntesis previa
+          window.speechSynthesis.cancel();
+
+          // 4.2 Precargar voces
+          const loadVoices = () => {
+            const voices = window.speechSynthesis.getVoices();
+            console.log(`Voces disponibles: ${voices.length}`);
+          };
+
+          // Chrome maneja las voces de forma asíncrona
+          if ("onvoiceschanged" in speechSynthesis) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+          } else {
+            loadVoices();
+          }
+
+          // 4.3 Hablar texto vacío para inicializar
+          const utterance = new SpeechSynthesisUtterance("");
+          utterance.volume = 0;
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+
+          window.speechSynthesis.speak(utterance);
+          console.log("Sintetizador de voz precargado");
+        } else {
+          console.warn("SpeechSynthesis no disponible en este navegador");
+        }
+
+        // 5. Estrategia alternativa: Audio element
+        try {
+          const audioElement = new Audio();
+          audioElement.volume = 0.01;
+          audioElement.src =
+            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
+          const playPromise = audioElement.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                setTimeout(() => {
+                  audioElement.pause();
+                  audioElement.src = "";
+                }, 10);
+              })
+              .catch((e) => console.warn("Error en reproducción de audio:", e));
+          }
+        } catch (audioElementError) {
+          console.warn("Error en Audio element:", audioElementError);
+        }
+
+        // Si llegamos aquí, asumimos éxito
+        console.log("Audio inicializado correctamente");
+        return true;
+      } catch (error) {
+        console.warn(
+          `Error en intento ${attempt}/${maxAttempts} de inicialización de audio:`,
+          error
+        );
+
+        if (attempt === maxAttempts) {
+          console.error(
+            "Error al inicializar audio después de múltiples intentos:",
+            error
+          );
+          // En el último intento, continuamos de todas formas
+          return false;
+        }
+
+        // Esperar un momento antes del siguiente intento
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
-
-      // Crear un breve sonido silencioso para inicializar
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.01; // Casi silencioso
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-      oscillator.start();
-      oscillator.stop(audioContext.currentTime + 0.1);
-
-      // 2. Precargar el sintetizador de voz
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel(); // Limpiar cualquier síntesis pendiente
-
-        // Forzar la carga de voces
-        window.speechSynthesis.getVoices();
-
-        // Hablar un texto vacío para inicializar el motor
-        const utterance = new SpeechSynthesisUtterance("");
-        utterance.volume = 0;
-        window.speechSynthesis.speak(utterance);
-
-        console.log("Sintetizador de voz precargado");
-      }
-
-      // Forzar una interacción simulada con la página
-      document.body.click();
-
-      return true;
-    } catch (e) {
-      console.error("Error al inicializar audio:", e);
-      return false;
     }
+
+    // Si llegamos aquí es que todos los intentos fallaron pero seguimos
+    console.warn(
+      "No se pudo inicializar audio completamente, continuando de todas formas"
+    );
+    return false;
   }
 }
 
