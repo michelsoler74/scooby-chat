@@ -240,8 +240,8 @@
       .btn-recording {
         background-color: #dc3545 !important;
         color: white !important;
-        animation: pulse-recording 2s infinite;
-        position: relative;
+        animation: pulse-recording 1.5s infinite;
+        border-color: #dc3545 !important;
       }
 
       @keyframes pulse-recording {
@@ -267,9 +267,12 @@
 
       /* Estilos para mensajes de sistema */
       .system-message {
-        background-color: #f0f8ff;
-        border-left: 4px solid #007bff;
-        padding-left: 15px;
+        background-color: #e9f5ff;
+        border-left: 4px solid #17a2b8;
+        padding: 8px 12px;
+        margin: 5px 0;
+        font-style: italic;
+        color: #0c5460;
       }
 
       /* Estilos para destacar el texto de Scooby */
@@ -297,6 +300,49 @@
         100% {
           transform: scale(3);
           opacity: 0;
+        }
+      }
+
+      /* Mensaje de navegador no compatible */
+      .browser-warning {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 10px 15px;
+        border-radius: 4px;
+        z-index: 1050;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        max-width: 90%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* Mensaje de estado del sistema */
+      .system-message {
+        background-color: #e9f5ff;
+        border-left: 4px solid #17a2b8;
+        padding: 8px 12px;
+        margin: 5px 0;
+        font-style: italic;
+        color: #0c5460;
+      }
+
+      /* Mensaje de Scooby cuando está hablando */
+      .current-speaking {
+        animation: speaking-highlight 1.5s infinite alternate;
+      }
+
+      @keyframes speaking-highlight {
+        from {
+          border-left-color: #17a2b8;
+        }
+        to {
+          border-left-color: #dc3545;
         }
       }
     </style>
