@@ -2078,6 +2078,66 @@ class ScoobyApp {
       console.error("Error al adaptar UI para modo texto:", error);
     }
   }
+
+  /**
+   * Obtiene la API key de los parámetros de la URL
+   * @returns {string|null} La API key si existe en la URL, null si no
+   */
+  getAPIKeyFromURL() {
+    try {
+      // Obtener los parámetros de la URL
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Verificar si existe el parámetro 'key'
+      if (urlParams.has("key")) {
+        const key = urlParams.get("key");
+        console.log("API key encontrada en URL");
+        return key;
+      }
+
+      // También probar con el formato completo de Hugging Face
+      const hfPattern = /hf_[a-zA-Z0-9]{34}/;
+      const matches = window.location.href.match(hfPattern);
+      if (matches && matches.length > 0) {
+        console.log("API key de Hugging Face encontrada en URL");
+        return matches[0];
+      }
+
+      return null;
+    } catch (error) {
+      console.warn("Error al obtener API key de URL:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Maneja errores durante la inicialización
+   */
+  handleInitializationError(error) {
+    console.error("Error durante la inicialización:", error);
+    // Agregar un mensaje en la interfaz
+    if (this.uiService) {
+      this.uiService.addSystemMessage(
+        `Error de inicialización: ${error.message}. Intenta recargar la página o presiona el botón de emergencia.`
+      );
+    }
+
+    // Intentar establecer al menos algunas capacidades básicas
+    if (!this.isInitialized) {
+      // Forzar inicialización parcial para permitir al menos el chat por texto
+      console.log(
+        "Estableciendo inicialización parcial para funcionalidad mínima"
+      );
+      this.isInitialized = true;
+
+      // Notificar al usuario que hay funcionalidad limitada
+      if (this.uiService) {
+        this.uiService.addSystemMessage(
+          "Scooby está operando en modo limitado. Algunas funciones pueden no estar disponibles."
+        );
+      }
+    }
+  }
 }
 
 // Inicialización automática de la aplicación cuando se carga el script
