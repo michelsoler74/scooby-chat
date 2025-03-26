@@ -302,6 +302,33 @@
     </style>
   </head>
   <body>
+    <!-- Botón de emergencia flotante, inicialmente oculto -->
+    <div
+      id="emergency-btn-container"
+      style="
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 9999;
+      "
+    >
+      <button
+        id="emergency-restart-btn"
+        class="btn btn-danger"
+        style="
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 8px 15px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        "
+      >
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Reinicio de emergencia</span>
+      </button>
+    </div>
+
     <div class="container-fluid">
       <!-- Header -->
       <header>
@@ -497,15 +524,15 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="src/js/app.js?v=1.3"></script>
 
-    <!-- Scripts principales -->
+    <!-- Cargar scripts en el orden correcto - SOLO UNA VEZ -->
     <script src="src/js/services/SpeechService.js"></script>
     <script src="src/js/services/UIService.js"></script>
     <script src="src/js/services/HuggingFaceService.js"></script>
     <script src="src/js/services/DogApi.js"></script>
     <script src="src/js/services/MonitorUI.js"></script>
-    <script src="src/js/app.js"></script>
+    <!-- Solo cargar app.js UNA VEZ y como módulo para asegurar que se carga después de los servicios -->
+    <script type="module" src="src/js/app.js?v=1.4"></script>
 
     <!-- Script para verificar que la aplicación se carga correctamente -->
     <script>
@@ -849,6 +876,87 @@
           });
         }
       });
+    </script>
+
+    <!-- Script para detectar errores globales y mostrar botón de emergencia -->
+    <script>
+      (function () {
+        // Agregar detector de errores global
+        window.addEventListener("error", function (event) {
+          console.error("Error global detectado:", event);
+
+          // Mostrar botón de emergencia
+          const emergencyBtn = document.getElementById(
+            "emergency-btn-container"
+          );
+          if (emergencyBtn) {
+            emergencyBtn.style.display = "block";
+          }
+        });
+
+        // Configurar el botón de emergencia
+        document.addEventListener("DOMContentLoaded", function () {
+          const emergencyBtn = document.getElementById("emergency-restart-btn");
+          if (emergencyBtn) {
+            emergencyBtn.addEventListener("click", function () {
+              try {
+                if (
+                  window.app &&
+                  typeof window.app.resetApplication === "function"
+                ) {
+                  // Intentar reiniciar la aplicación
+                  window.app.resetApplication();
+
+                  // Ocultar el botón
+                  document.getElementById(
+                    "emergency-btn-container"
+                  ).style.display = "none";
+                } else {
+                  // Si no hay método de reinicio, recargar la página
+                  location.reload(true);
+                }
+              } catch (e) {
+                console.error("Error al reiniciar de emergencia:", e);
+                // Si todo falla, recargar la página
+                location.reload(true);
+              }
+            });
+          }
+
+          // También detectar si no hay respuesta por más de 10 segundos
+          let lastActivity = Date.now();
+          const activityCheck = () => {
+            const now = Date.now();
+            if (
+              now - lastActivity > 10000 &&
+              window.app &&
+              window.app.isProcessing
+            ) {
+              console.warn(
+                "Inactividad detectada por más de 10 segundos mientras se procesa"
+              );
+              // Mostrar botón de emergencia
+              const emergencyBtn = document.getElementById(
+                "emergency-btn-container"
+              );
+              if (emergencyBtn) {
+                emergencyBtn.style.display = "block";
+              }
+            }
+            lastActivity = now;
+          };
+
+          // Verificar cada 5 segundos
+          setInterval(activityCheck, 5000);
+
+          // Actualizar timestamp de actividad en interacciones de usuario
+          ["click", "keydown", "mousemove", "touchstart"].forEach((event) => {
+            document.addEventListener(event, () => {
+              lastActivity = Date.now();
+            });
+          });
+        });
+      })();
     </script>
   </body>
 </html>

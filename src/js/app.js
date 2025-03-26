@@ -1888,9 +1888,208 @@ class ScoobyApp {
     );
     return false;
   }
+
+  handleGlobalError(event) {
+    console.error("Error global capturado:", event.error || event.message);
+
+    // Si tenemos el servicio UI, mostrar mensaje de error
+    if (this.uiService) {
+      const errorDetails = event.error
+        ? event.error.stack || event.error.message
+        : event.message || "Error desconocido";
+
+      // Mostrar un mensaje de error más informativo
+      const errorMessage = document.createElement("div");
+      errorMessage.className = "error-message";
+      errorMessage.innerHTML = `
+        <div style="background-color: #ffdddd; padding: 15px; border-radius: 5px; border-left: 5px solid #f44336; margin-bottom: 15px;">
+          <h4 style="color: #d32f2f; margin-top: 0;">Error detectado</h4>
+          <p>${errorDetails}</p>
+          <div>
+            <button onclick="location.reload()" class="btn btn-danger btn-sm">Recargar página</button>
+            <button onclick="window.app.resetApplication()" class="btn btn-warning btn-sm ml-2">Reiniciar Scooby</button>
+          </div>
+        </div>
+      `;
+
+      // Insertar al principio del área de conversación
+      const conversation = document.getElementById("conversation");
+      if (conversation) {
+        if (conversation.firstChild) {
+          conversation.insertBefore(errorMessage, conversation.firstChild);
+        } else {
+          conversation.appendChild(errorMessage);
+        }
+      }
+    }
+
+    // Intentar recuperar la aplicación
+    this.attemptRecovery();
+  }
+
+  attemptRecovery() {
+    console.log("Intentando recuperar la aplicación después de un error...");
+
+    // Intentar restablecer los servicios básicos
+    try {
+      // Restablecer estado
+      this.isProcessing = false;
+
+      // Asegurarnos de que la UI es utilizable
+      if (this.uiService) {
+        // Habilitar botones
+        const talkBtn = document.getElementById("talk-btn");
+        const sendBtn = document.getElementById("send-btn");
+        if (talkBtn) talkBtn.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+      }
+
+      // Si el reconocimiento de voz está activo, detenerlo
+      if (this.speechService && this.speechService.recognition) {
+        try {
+          this.speechService.stopRecognition();
+          console.log("Reconocimiento de voz detenido durante recuperación");
+        } catch (e) {
+          console.warn("No se pudo detener el reconocimiento:", e);
+        }
+      }
+
+      // Reiniciar el sistema de audio si es necesario
+      this.initAudio().catch((e) =>
+        console.warn("Error al reiniciar audio:", e)
+      );
+    } catch (recoveryError) {
+      console.error("Error durante intento de recuperación:", recoveryError);
+    }
+  }
+
+  resetApplication() {
+    console.log("Reiniciando completamente la aplicación...");
+
+    try {
+      // Detener todos los procesos activos
+      if (this.speechService) {
+        try {
+          this.speechService.stopRecognition();
+          this.speechService.cancelSpeech();
+        } catch (e) {
+          console.warn("Error al detener servicios de voz:", e);
+        }
+      }
+
+      // Limpiar el área de conversación
+      const conversation = document.getElementById("conversation");
+      if (conversation) {
+        conversation.innerHTML = "";
+      }
+
+      // Mostrar mensaje de reinicio
+      this.addSystemMessage("Reiniciando Scooby... Por favor espere.");
+
+      // Reiniciar estado
+      this.isProcessing = false;
+      this.isInitialized = false;
+
+      // Reinicializar después de un breve retraso
+      setTimeout(() => {
+        this.init()
+          .then(() => {
+            this.addSystemMessage("¡Scooby ha sido reiniciado correctamente!");
+            this.showWelcomeMessage();
+          })
+          .catch((error) => {
+            console.error("Error durante el reinicio:", error);
+            this.addSystemMessage("Error al reiniciar: " + error.message);
+
+            // Último recurso: sugerir recarga manual
+            const reloadMsg = document.createElement("div");
+            reloadMsg.innerHTML = `
+              <div style="text-align: center; margin: 20px 0;">
+                <button onclick="location.reload()" class="btn btn-primary">Recargar página</button>
+              </div>
+            `;
+            conversation.appendChild(reloadMsg);
+          });
+      }, 1000);
+    } catch (error) {
+      console.error("Error catastrófico durante reinicio:", error);
+      alert("Error grave. La página se recargará.");
+      location.reload();
+    }
+  }
 }
 
-// Inicializar cuando el DOM esté listo
+// Inicialización automática de la aplicación cuando se carga el script
+let appInstance = null;
+
+function initApp() {
+  console.log("🚀 Inicializando App desde módulo...");
+
+  try {
+    // Verificar si ya hay una instancia
+    if (window.app) {
+      console.log("Ya existe una instancia de la aplicación");
+      appInstance = window.app;
+
+      // Si la instancia existe pero no está inicializada, inicializarla
+      if (
+        !appInstance.isInitialized &&
+        typeof appInstance.init === "function"
+      ) {
+        console.log("Inicializando instancia existente...");
+        appInstance.init().catch((e) => {
+          console.error("Error al inicializar instancia existente:", e);
+          // Mostrar un mensaje de error más visible
+          const errorDiv = document.createElement("div");
+          errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 9999;
+            text-align: center;
+          `;
+          errorDiv.innerHTML = `
+            <h3>❌ Error - ${e.message}</h3>
+            <p>Intenta recargar la página</p>
+            <button onclick="location.reload()" class="btn btn-danger">Recargar página</button>
+          `;
+          document.body.appendChild(errorDiv);
+        });
+      }
+    } else {
+      // Si no hay instancia, crear una nueva
+      console.log("Creando nueva instancia de la aplicación...");
+      appInstance = new ScoobyApp();
+      window.app = appInstance; // Exponerla globalmente
+
+      // Inicializar con manejo de errores
+      appInstance.init().catch((e) => {
+        console.error("Error durante inicialización:", e);
+        // Mostrar mensaje de error
+        alert("Error al inicializar Scooby: " + e.message);
+      });
+    }
+
+    return appInstance;
+  } catch (error) {
+    console.error("Error crítico durante inicialización:", error);
+    alert("Error crítico: " + error.message);
+    return null;
+  }
+}
+
+// Auto-inicializar después de un breve retraso para asegurar que el DOM está listo
 document.addEventListener("DOMContentLoaded", () => {
-  window.app = new ScoobyApp();
+  setTimeout(() => {
+    initApp();
+  }, 500);
 });
+
+// Exportar app para uso en otros módulos
+export { ScoobyApp, initApp };
