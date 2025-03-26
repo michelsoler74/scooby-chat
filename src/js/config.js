@@ -25,41 +25,74 @@ const config = {
     }
 
     // Si no hay key válida, mostrar mensaje
-    console.warn("No se encontró una API key válida");
-    alert(
-      "Por favor, proporciona una API key válida de Gemini añadiendo ?key=TU_API_KEY al final de la URL.\n" +
-        "La API key debe tener 39 caracteres y contener solo letras, números, guiones y guiones bajos."
-    );
+    console.warn("No se encontró una API key válida para Gemini");
     return null;
   })(),
 
   // La API key de Hugging Face se puede proporcionar mediante URL o localStorage
   HUGGINGFACE_API_KEY: (function () {
+    // Función para validar una API key de Hugging Face (menos estricta)
     const validateApiKey = (key) => {
-      if (!key || typeof key !== "string") {
+      if (!key || typeof key !== "string" || key.trim().length < 5) {
         return null;
       }
-      return key;
+      return key.trim();
     };
 
+    // Buscar en todos los parámetros posibles y en localStorage
     const urlParams = new URLSearchParams(window.location.search);
-    const urlKey = validateApiKey(urlParams.get("hf_key"));
-    if (urlKey) {
-      localStorage.setItem("HUGGINGFACE_API_KEY", urlKey);
-      return urlKey;
+
+    // Opciones de parámetros (para mayor flexibilidad)
+    const paramOptions = [
+      "hf_key",
+      "hfkey",
+      "huggingface_key",
+      "huggingfacekey",
+      "key",
+    ];
+
+    // Buscar en URL con diferentes nombres de parámetro
+    for (const param of paramOptions) {
+      const urlKey = validateApiKey(urlParams.get(param));
+      if (urlKey) {
+        console.log(
+          `API key de Hugging Face encontrada en parámetro URL: ${param}`
+        );
+        localStorage.setItem("HUGGINGFACE_API_KEY", urlKey);
+        return urlKey;
+      }
     }
 
-    const storedKey = validateApiKey(
-      localStorage.getItem("HUGGINGFACE_API_KEY")
-    );
-    if (storedKey) {
-      return storedKey;
+    // Buscar en localStorage con diferentes nombres posibles
+    const storageOptions = ["HUGGINGFACE_API_KEY", "HF_API_KEY", "HF_KEY"];
+    for (const key of storageOptions) {
+      const storedKey = validateApiKey(localStorage.getItem(key));
+      if (storedKey) {
+        console.log(
+          `API key de Hugging Face encontrada en localStorage: ${key}`
+        );
+        // Normalizar el almacenamiento
+        localStorage.setItem("HUGGINGFACE_API_KEY", storedKey);
+        return storedKey;
+      }
     }
 
+    // Si no se encontró la key, buscar en la URL completa (para casos donde se pasa en el fragmento)
+    const urlSearch = window.location.search + window.location.hash;
+    if (urlSearch.includes("key=")) {
+      const keyMatch = urlSearch.match(/key=([^&]+)/);
+      if (keyMatch && keyMatch[1]) {
+        const potentialKey = validateApiKey(keyMatch[1]);
+        if (potentialKey) {
+          console.log("API key encontrada en fragmento URL");
+          localStorage.setItem("HUGGINGFACE_API_KEY", potentialKey);
+          return potentialKey;
+        }
+      }
+    }
+
+    // Si llegamos aquí, no se encontró key válida
     console.warn("No se encontró una API key de Hugging Face válida");
-    alert(
-      "Por favor, proporciona una API key válida de Hugging Face añadiendo ?hf_key=TU_API_KEY al final de la URL."
-    );
     return null;
   })(),
 

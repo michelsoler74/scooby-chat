@@ -125,21 +125,92 @@ class ScoobyApp {
 
       if (!this.hasVoiceSupport) {
         console.warn("Tu navegador no soporta reconocimiento de voz");
-        // Solo mostramos la advertencia después de que el usuario interactúe
       }
 
-      // 5. Mostrar el botón de bienvenida (importante: esto debe ir antes de checkModelConnection)
+      try {
+        // 5. Iniciar videos de Scooby (esto debe ocurrir pronto para evitar problemas)
+        if (this.scoobyCalladoVideo) {
+          this.scoobyCalladoVideo
+            .play()
+            .catch((e) =>
+              console.warn("No se pudo iniciar el video de Scooby callado:", e)
+            );
+        }
+      } catch (videoError) {
+        console.warn("Error al inicializar videos:", videoError);
+      }
+
+      // 6. Mostrar el botón de bienvenida
       this.createTemporaryButton();
       console.log("Botón de bienvenida creado");
 
-      // El resto de la inicialización se hará cuando el usuario haga clic en el botón
+      // 7. Marcar inicialización parcial completada
+      this.isInit = true;
     } catch (error) {
       console.error("Error durante la inicialización:", error);
-      // Intentar reiniciar la aplicación si hay un error
-      setTimeout(() => {
-        alert("Hubo un problema al iniciar Scooby. Intentando reiniciar...");
-        location.reload();
-      }, 1000);
+
+      // Crear un botón de emergencia en caso de error durante la inicialización
+      const emergencyBtn = document.createElement("button");
+      emergencyBtn.textContent = "🚨 Iniciar Scooby (modo alternativo)";
+      emergencyBtn.className = "btn btn-danger btn-lg";
+      emergencyBtn.style.position = "fixed";
+      emergencyBtn.style.top = "50%";
+      emergencyBtn.style.left = "50%";
+      emergencyBtn.style.transform = "translate(-50%, -50%)";
+      emergencyBtn.style.zIndex = "99999";
+      emergencyBtn.style.padding = "20px 40px";
+
+      // Al hacer clic, reiniciar manualmente todo
+      emergencyBtn.onclick = async () => {
+        try {
+          emergencyBtn.textContent = "🔄 Reiniciando...";
+          emergencyBtn.disabled = true;
+
+          // Inicializar audio primero (crítico)
+          await this.initAudio();
+
+          // Re-crear servicios
+          this.uiService = new UIService();
+          this.speechService = new SpeechService();
+          this.llmService = new HuggingFaceService();
+          this.dogApi = new DogApi();
+
+          // Exponer servicios globalmente
+          window.speechService = this.speechService;
+
+          // Configurar eventos y callbacks
+          this.setupEventHandlers();
+          this.setupSpeechCallbacks();
+
+          // Intentar verificar conexión con el modelo
+          try {
+            await this.checkModelConnection();
+            this.isConnected = true;
+          } catch (connectionError) {
+            console.warn(
+              "Error de conexión en modo de emergencia:",
+              connectionError
+            );
+          }
+
+          this.isInitialized = true;
+
+          // Ocultar botón de emergencia
+          emergencyBtn.style.opacity = "0";
+          setTimeout(() => emergencyBtn.remove(), 500);
+
+          // Mostrar mensaje de bienvenida
+          this.uiService.addSystemMessage(
+            "👋 ¡Hola! Soy Scooby. Estoy listo para chatear contigo."
+          );
+        } catch (emergencyError) {
+          console.error("Error en modo de emergencia:", emergencyError);
+          emergencyBtn.textContent = "❌ Error - Recargar página";
+          emergencyBtn.onclick = () => location.reload(true);
+        }
+      };
+
+      document.body.appendChild(emergencyBtn);
     }
   }
 
@@ -1415,65 +1486,55 @@ class ScoobyApp {
       try {
         console.log("Botón de bienvenida clickeado, iniciando Scooby...");
 
-        // 1. Desactivar el botón
+        // Desactivar el botón inmediatamente
         tempButton.disabled = true;
         tempButton.style.opacity = "0.7";
         tempButton.textContent = "🐕 Iniciando...";
 
-        // 2. Inicializar audio
+        // Inicializar audio (crítico para la interacción)
         await this.initAudio();
         console.log("Audio inicializado correctamente");
 
-        // 3. Animar y remover el botón
+        // Animar y remover el botón
         tempButton.style.transition = "all 0.5s ease-out";
         tempButton.style.opacity = "0";
         tempButton.style.transform = "translate(-50%, -50%) scale(0.8)";
+
+        // Simulación de interacción para desbloquear el audio
+        this.simulateUserInteraction();
 
         setTimeout(() => {
           tempButton.remove();
           style.remove();
         }, 500);
 
-        // 4. Verificar conexión con el modelo
-        try {
-          await this.checkModelConnection();
-          console.log("Conexión con modelo verificada");
-        } catch (connError) {
-          console.error("Error de conexión:", connError);
-          this.uiService.showWarning(
-            "La conexión con el modelo está fallando. Algunas funciones pueden no estar disponibles."
-          );
-        }
-
-        // 5. Marcar como inicializado
-        this.isInitialized = true;
-        console.log("Aplicación inicializada completamente");
-
-        // 6. Mostrar mensaje de bienvenida
-        console.log("Mostrando mensaje de bienvenida...");
-
-        // Si no hay conexión, mostrar un mensaje alternativo
-        if (!this.isConnected) {
-          this.uiService.addSystemMessage(
-            "👋 ¡Hola! Soy Scooby. Parece que tengo problemas para conectarme. " +
-              "Intenta hacer clic en el botón 'Diagnosticar micrófono' para revisar la conexión."
-          );
-        } else {
-          await this.showWelcomeMessage();
-        }
+        // Verificar conexión con el modelo (no bloqueante)
+        this.checkModelConnection()
+          .then(() => {
+            this.isConnected = true;
+            console.log("Conexión con el modelo establecida");
+          })
+          .catch((error) => {
+            console.warn("Error de conexión (no crítico):", error);
+            this.isConnected = false;
+          })
+          .finally(() => {
+            // Sin importar la conexión, marcar como inicializado y mostrar bienvenida
+            this.isInitialized = true;
+            this.showWelcomeMessage().catch((e) =>
+              console.warn("Error al mostrar bienvenida:", e)
+            );
+          });
       } catch (error) {
         console.error("Error al iniciar Scooby:", error);
 
-        // Mostrar error al usuario
-        alert(
-          "Hubo un problema al iniciar a Scooby: " +
-            error.message +
-            "\nIntenta recargar la página."
-        );
+        // Intentar que el usuario vea el mensaje de error
+        alert("Error al iniciar Scooby: " + error.message);
 
-        // Restaurar el botón
+        // Restaurar el botón para otro intento
         tempButton.disabled = false;
         tempButton.style.opacity = "1";
+        tempButton.style.transform = "translate(-50%, -50%)";
         tempButton.textContent = "🐕 ¡Intentar de nuevo!";
       }
     };
@@ -1481,6 +1542,42 @@ class ScoobyApp {
     // Añadir el botón al DOM
     document.body.appendChild(tempButton);
     console.log("Botón de bienvenida añadido al DOM");
+  }
+
+  // Función para simular interacción del usuario y desbloquear audio
+  simulateUserInteraction() {
+    try {
+      // Crear y reproducir un sonido silencioso
+      const audio = new Audio();
+      audio.volume = 0.01;
+      audio.src =
+        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
+      // Reproducir y detener inmediatamente
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setTimeout(() => {
+              audio.pause();
+              audio.src = "";
+            }, 10);
+          })
+          .catch((e) => console.warn("Error en simulación de audio:", e));
+      }
+
+      // Simular clicks
+      document.body.click();
+
+      // Activar video silenciosamente
+      if (this.scoobyCalladoVideo) {
+        this.scoobyCalladoVideo
+          .play()
+          .catch((e) => console.warn("No se pudo activar video:", e));
+      }
+    } catch (e) {
+      console.warn("Error en simulación de interacción:", e);
+    }
   }
 
   /**
