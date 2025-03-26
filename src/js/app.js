@@ -10,15 +10,30 @@ window.monitorUI = new MonitorUI();
 
 class ScoobyApp {
   constructor() {
-    this.isInitialized = false;
-    this.isProcessing = false;
-    this.isSpeaking = false;
-    this.hasVoiceSupport = false;
-    this.welcomeAttempted = false;
-    this.uiService = null;
+    console.log("🐕 Inicializando ScoobyApp...");
+    this.apiKey = null;
+    this.model = null;
     this.speechService = null;
-    this.llmService = null;
-    this.dogApi = null;
+    this.uiService = null;
+    this.appConfig = {};
+    this.isInitialized = false; // Inicialmente false
+    this.isProcessing = false;
+    this.isVoiceSupported = false;
+    this.lastResponse = null;
+    this.useFallbackVoice = false;
+    this.isErrorHandlerAttached = false;
+    this.displayName = "Scooby";
+    this.voiceIndex = 0;
+    this.maxAttempts = 3;
+
+    // Hacemos visible la instancia para debugging
+    window.app = this;
+
+    // Reportar errores no capturados
+    if (!this.isErrorHandlerAttached) {
+      window.addEventListener("error", this.handleGlobalError.bind(this));
+      this.isErrorHandlerAttached = true;
+    }
 
     // Servicios
     this.uiService = new UIService();
@@ -96,6 +111,20 @@ class ScoobyApp {
 
   async init() {
     try {
+      console.log("🐕 Iniciando proceso de inicialización completa...");
+      // Intento #1: Buscar API key en parámetros URL
+      this.apiKey = this.getAPIKeyFromURL();
+
+      if (!this.apiKey) {
+        // Intento #2: Buscar API key en localStorage
+        this.apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+        console.log("API key encontrada en localStorage:", !!this.apiKey);
+      }
+
+      // Inicializar elementos DOM
+      this.initDOMElements();
+
+      // Inicializar audio y TTS
       console.log("Iniciando aplicación...");
 
       // 1. Verificar si ya está inicializado
@@ -1626,6 +1655,12 @@ class ScoobyApp {
           style.remove();
         }, 500);
 
+        // Inicialización de servicios - NO ESPERAR por ellos
+        // para evitar bloqueos que impidan establecer isInitialized
+        this.initializeServices().catch((e) =>
+          console.warn("Error no crítico al inicializar servicios:", e)
+        );
+
         // Verificar conexión con el modelo (no bloqueante)
         this.checkModelConnection()
           .then(() => {
@@ -1637,14 +1672,31 @@ class ScoobyApp {
             this.isConnected = false;
           })
           .finally(() => {
-            // Sin importar la conexión, marcar como inicializado y mostrar bienvenida
+            // IMPORTANTE: Marcar como inicializado INDEPENDIENTEMENTE de la conexión
+            console.log("⭐ Marcando la aplicación como inicializada");
             this.isInitialized = true;
+
+            // Mostrar mensaje incluso si hubo errores
             this.showWelcomeMessage().catch((e) =>
               console.warn("Error al mostrar bienvenida:", e)
             );
           });
+
+        // CRÍTICO: Marcar como inicializado de inmediato para evitar el botón de emergencia
+        // Incluso si los servicios aún no están completamente cargados
+        setTimeout(() => {
+          if (!this.isInitialized) {
+            console.warn(
+              "⚠️ Forzando estado de inicialización para evitar botón de emergencia"
+            );
+            this.isInitialized = true;
+          }
+        }, 2000);
       } catch (error) {
         console.error("Error al iniciar Scooby:", error);
+
+        // IMPORTANTE: Incluso con error, marcar como inicializado para evitar el botón
+        this.isInitialized = true;
 
         // Intentar que el usuario vea el mensaje de error
         alert("Error al iniciar Scooby: " + error.message);
