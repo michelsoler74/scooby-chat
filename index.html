@@ -425,7 +425,35 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="src/js/app.js?v=1.2"></script>
+    <script type="module" src="src/js/app.js?v=1.3"></script>
+
+    <!-- Script para verificar que la aplicación se carga correctamente -->
+    <script>
+      window.addEventListener("load", function () {
+        console.log("Verificando carga de Scooby App...");
+        setTimeout(function () {
+          if (!window.app || !window.app.isInitialized) {
+            console.error("La aplicación no se inicializó correctamente");
+
+            // Crear un botón de emergencia para iniciar manualmente
+            const emergencyBtn = document.createElement("button");
+            emergencyBtn.textContent = "🐕 Iniciar Scooby (modo de emergencia)";
+            emergencyBtn.className = "btn btn-danger btn-lg";
+            emergencyBtn.style.position = "fixed";
+            emergencyBtn.style.top = "50%";
+            emergencyBtn.style.left = "50%";
+            emergencyBtn.style.transform = "translate(-50%, -50%)";
+            emergencyBtn.style.zIndex = "9999";
+
+            emergencyBtn.onclick = function () {
+              location.reload(true); // Forzar recarga completa
+            };
+
+            document.body.appendChild(emergencyBtn);
+          }
+        }, 3000); // Esperar 3 segundos
+      });
+    </script>
 
     <!-- Script para verificar el estado del micrófono y gestionar tooltip -->
     <script>
