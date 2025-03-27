@@ -5,8 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    this.baseUrl = "https://api-inference.huggingface.co/models/";
-    this.model = "microsoft/DialoGPT-medium";
+    // Cambiar a Mixtral, un modelo más potente con mejor soporte para español
+    this.baseUrl =
+      "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
     this._apiKey = null;
     this.isConnected = false;
     this.conversationHistory = [];
@@ -52,7 +53,7 @@ Usuario: Hola Scooby
 </s>[INST] Usuario: `;
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con DialoGPT-medium");
+    console.log("HuggingFaceService inicializado con Mixtral-8x7B");
     console.log("URL de la API:", this.baseUrl);
     console.log(`Tipo de dispositivo: ${this.isMobile ? "móvil" : "desktop"}`);
   }
@@ -64,9 +65,11 @@ Usuario: Hola Scooby
 
   set apiKey(value) {
     if (!value) {
-      throw new Error("La API key no puede estar vacía");
+      console.warn("Se intentó establecer una API key vacía");
+      return;
     }
     this._apiKey = value;
+    console.log("API key configurada correctamente");
   }
 
   // Método para verificar si tenemos una API key válida
@@ -80,7 +83,7 @@ Usuario: Hola Scooby
         throw new Error("Se requiere una API key válida para usar el servicio");
       }
 
-      const response = await fetch(`${this.baseUrl}${this.model}`, {
+      const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -221,7 +224,7 @@ Usuario: ${userMessage}
 
       const temperature = this.isMobile ? 0.4 : 0.5;
 
-      const response = await fetch(`${this.baseUrl}${this.model}`, {
+      const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

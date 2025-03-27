@@ -42,25 +42,24 @@ class ScoobyApp {
 
   initServices() {
     try {
-      // Inicializar servicios en orden
-      this.uiService = new UIService();
+      console.log("Inicializando servicios básicos...");
+
+      // Inicializar servicio de voz
       this.speechService = new SpeechService();
+
+      // Inicializar servicio de UI
+      this.uiService = new UIService();
+
+      // Inicializar servicio LLM (Hugging Face)
       this.llmService = new HuggingFaceService();
+
+      // Inicializar servicio de imágenes
       this.dogApi = new DogApi();
 
-      // Verificar soporte de voz inmediatamente
-      if (this.speechService) {
-        this.isVoiceSupported = this.speechService.canUseVoiceRecognition();
-        console.log("Soporte de voz detectado:", this.isVoiceSupported);
-      }
-
-      // Exponer servicios globalmente para debugging
-      window.speechService = this.speechService;
-      window.monitorUI = new MonitorUI();
-
-      console.log("Servicios base inicializados correctamente");
+      console.log("Servicios básicos inicializados correctamente");
+      return true;
     } catch (error) {
-      console.error("Error al inicializar servicios base:", error);
+      console.error("Error al inicializar servicios básicos:", error);
       throw error;
     }
   }
@@ -1875,13 +1874,15 @@ class ScoobyApp {
         throw new Error("Servicios base no inicializados correctamente");
       }
 
-      // Obtener la API key
-      const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+      // Obtener la API key desde localStorage o desde la propiedad de la clase
+      const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY") || this.apiKey;
+
       if (!apiKey) {
         throw new Error("No se encontró la API key de Hugging Face");
       }
 
       // Asignar la API key directamente a la propiedad del servicio
+      // Usamos la propiedad apiKey que ahora tiene un setter en HuggingFaceService
       this.llmService.apiKey = apiKey;
       console.log("API key asignada al servicio LLM");
 
