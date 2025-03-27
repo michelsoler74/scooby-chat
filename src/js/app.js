@@ -15,8 +15,9 @@ class ScoobyApp {
     this.model = null;
     this.speechService = null;
     this.uiService = null;
+    this.llmService = null; // Cambiado de this.model
     this.appConfig = {};
-    this.isInitialized = false; // Inicialmente false
+    this.isInitialized = false;
     this.isProcessing = false;
     this.isVoiceSupported = false;
     this.lastResponse = null;
@@ -35,83 +36,42 @@ class ScoobyApp {
       this.isErrorHandlerAttached = true;
     }
 
-    // Servicios
-    this.uiService = new UIService();
-    this.speechService = new SpeechService();
-    this.llmService = new HuggingFaceService();
-    this.dogApi = new DogApi();
+    // Inicializar servicios
+    this.initServices();
+  }
 
-    // Exponer servicios globalmente
-    window.speechService = this.speechService;
-    window.monitorUI = new MonitorUI();
+  initServices() {
+    try {
+      // Inicializar servicios en orden
+      this.uiService = new UIService();
+      this.speechService = new SpeechService();
+      this.llmService = new HuggingFaceService();
+      this.dogApi = new DogApi();
 
-    // Detectar tipo de dispositivo
-    this.isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
-    console.log(
-      `Inicializando Scooby en dispositivo ${
-        this.isMobile ? "móvil" : "desktop"
-      }`
-    );
-    console.log(
-      `Dimensiones de ventana: ${window.innerWidth}x${window.innerHeight}`
-    );
+      // Verificar soporte de voz inmediatamente
+      if (this.speechService) {
+        this.isVoiceSupported = this.speechService.canUseVoiceRecognition();
+        console.log("Soporte de voz detectado:", this.isVoiceSupported);
+      }
 
-    // Añadir clases específicas al body para detectar el tipo de dispositivo
-    document.body.classList.add(
-      this.isMobile ? "mobile-device" : "desktop-device"
-    );
-    document.body.classList.add("user-interaction");
+      // Exponer servicios globalmente para debugging
+      window.speechService = this.speechService;
+      window.monitorUI = new MonitorUI();
 
-    // Ajustar la altura de elementos basados en la altura de la ventana en móviles
-    if (this.isMobile) {
-      this.adjustMobileLayout();
-      // También ajustar cuando cambie el tamaño o la orientación
-      window.addEventListener("resize", () => this.adjustMobileLayout());
-      window.addEventListener("orientationchange", () =>
-        this.adjustMobileLayout()
-      );
-    }
-
-    // Configuraciones
-    this.isProcessingMessage = false;
-    this.isConnected = false;
-    this.isOnline = navigator.onLine;
-    this.isInit = false;
-
-    // Elementos DOM
-    this.conversation = document.getElementById("conversation");
-    this.textInput = document.getElementById("text-input");
-    this.sendBtn = document.getElementById("send-btn");
-    this.talkBtn = document.getElementById("talk-btn");
-    this.stopBtn = document.getElementById("stop-btn");
-    this.resumeBtn = document.getElementById("resume-btn");
-    this.continueBtn = document.getElementById("continue-btn");
-    this.clearChatBtn = document.getElementById("clear-chat-btn");
-    this.scoobyCalladoVideo = document.getElementById("scooby-callado");
-    this.scoobyHablandoVideo = document.getElementById("scooby-hablando");
-
-    // Estado para continuar respuesta
-    this.lastResponseText = "";
-    this.isContinuing = false;
-
-    // Configuración para boton temporal y configuración
-    this.hasSetupTempButton = false;
-
-    // Reintentos de reconocimiento de voz
-    this.speechRetryCount = 0;
-    this.maxSpeechRetries = 3;
-
-    // Inicializar cuando el DOM esté listo
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => this.init());
-    } else {
-      this.init();
+      console.log("Servicios base inicializados correctamente");
+    } catch (error) {
+      console.error("Error al inicializar servicios base:", error);
+      throw error;
     }
   }
 
   async init() {
     try {
       console.log("🐕 Iniciando proceso de inicialización completa...");
+
+      // Establecer que la aplicación está en proceso de inicialización
+      this.isInitializing = true;
+
       // Intento #1: Buscar API key en parámetros URL
       this.apiKey = this.getAPIKeyFromURL();
 
@@ -121,17 +81,22 @@ class ScoobyApp {
         console.log("API key encontrada en localStorage:", !!this.apiKey);
       }
 
-      // Inicializar elementos DOM
+      // Inicializar elementos DOM primero
       this.initDOMElements();
+
+      // Mostrar un mensaje de inicialización
+      this.addSystemMessage("Inicializando Scooby Chat...");
 
       // Inicializar audio y TTS
       await this.initAudio();
 
-      // Intentar una interacción de usuario simulada para desbloquear audio
-      this.simulateUserInteraction();
-
       // Inicializar servicios
-      await this.initializeServices();
+      const servicesInitialized = await this.initializeServices();
+      if (!servicesInitialized) {
+        throw new Error(
+          "No se pudieron inicializar los servicios correctamente"
+        );
+      }
 
       // Verificar conexión con el modelo
       await this.checkModelConnection();
@@ -143,6 +108,7 @@ class ScoobyApp {
       ) {
         this.setupSpeechCallbacks();
         this.isVoiceSupported = true;
+        console.log("Reconocimiento de voz configurado correctamente");
       } else {
         console.log(
           "🚫 Reconocimiento de voz no soportado - Activando modo texto"
@@ -153,21 +119,48 @@ class ScoobyApp {
 
       // Configurar manejadores de eventos
       this.setupEventHandlers();
-
-      // Mostrar mensaje de bienvenida
-      await this.showWelcomeMessage();
+      console.log("Manejadores de eventos configurados correctamente");
 
       // Ajustar layout para dispositivos móviles
       this.adjustMobileLayout();
 
+      // Establecer como inicializada antes de mostrar el mensaje de bienvenida
+      this.isInitialized = true;
+      this.isInitializing = false;
       console.log("🎉 ScoobyApp inicializada correctamente");
-      this.isInitialized = true; // Establecer como inicializada al final
+
+      // Intentar una interacción de usuario simulada para desbloquear audio
+      this.simulateUserInteraction();
+
+      // Mostrar mensaje de bienvenida
+      await this.showWelcomeMessage();
 
       // Activar monitoreo de API
       this.setupMonitoring();
+
+      // Habilitar botones ahora que todo está listo
+      this.enableButtons();
     } catch (error) {
       console.error("❌ Error al inicializar ScoobyApp:", error);
       this.handleInitializationError(error);
+    }
+  }
+
+  enableButtons() {
+    // Habilitar botones después de inicialización completa
+    if (this.talkBtn && this.isVoiceSupported) {
+      this.talkBtn.disabled = false;
+      console.log("Botón de hablar habilitado");
+    }
+
+    if (this.sendBtn) {
+      this.sendBtn.disabled = false;
+      console.log("Botón de enviar habilitado");
+    }
+
+    if (this.textInput) {
+      this.textInput.disabled = false;
+      console.log("Campo de texto habilitado");
     }
   }
 
@@ -873,184 +866,109 @@ class ScoobyApp {
   }
 
   async processUserInput(userMessage) {
-    if (!userMessage || !userMessage.trim()) {
+    if (!userMessage || userMessage.trim().length === 0) {
       console.log("Mensaje vacío, ignorando");
       return;
     }
 
-    if (this.isProcessingMessage) {
-      console.log("Ya procesando un mensaje, ignorando");
+    // Si la aplicación no está inicializada, mostrar un mensaje de error
+    if (!this.isInitialized) {
+      console.error("La aplicación no está inicializada completamente");
+      this.addSystemMessage(
+        "Por favor, espera a que la aplicación termine de inicializarse."
+      );
+      return;
+    }
+
+    // Evitar procesamiento si ya hay uno en curso
+    if (this.isProcessing) {
+      console.log("Ya hay un proceso en curso, ignorando entrada");
       return;
     }
 
     try {
-      this.isProcessingMessage = true;
+      // Establecer estado de procesamiento
+      this.isProcessing = true;
 
-      // Limpiar el campo de entrada
-      this.textInput.value = "";
+      // Desactivar botones durante el procesamiento
+      if (this.talkBtn) this.talkBtn.disabled = true;
+      if (this.sendBtn) this.sendBtn.disabled = true;
+      if (this.textInput) this.textInput.disabled = true;
 
-      // Normalizar el mensaje (eliminar espacios múltiples, etc.)
-      userMessage = userMessage.trim();
-
-      // Si el mensaje es muy corto y parece ruido, ignorarlo
-      if (userMessage.length < 2 || /^[.,;:!?]+$/.test(userMessage)) {
-        console.log(
-          "Mensaje demasiado corto o solo signos de puntuación, ignorando"
-        );
-        this.isProcessingMessage = false;
-        return;
-      }
-
-      console.log("Procesando mensaje del usuario:", userMessage);
-
-      // Añadir mensaje del usuario al chat
+      // Mostrar mensaje del usuario
       this.addUserMessage(userMessage);
 
-      // Verificar conexión con el modelo
-      if (!this.isConnected) {
-        await this.checkModelConnection();
-      }
+      // Mostrar animación de Scooby pensando
+      this.playScoobyTalking();
 
-      // Verificar si ya hay un proceso en curso
-      if (this.isProcessing || !userMessage || !userMessage.trim()) return;
+      // Procesar mensaje con el servicio LLM
+      console.log("Procesando mensaje:", userMessage);
 
-      // Actualizar estado
-      this.isProcessing = true;
-      this.uiService.updateButtonStates(false, true, this.isSpeaking);
-
-      // Ocultar el botón de continuar al procesar un nuevo mensaje
-      this.uiService.hideContinueButton();
-
-      // Detener reconocimiento mientras procesamos
-      if (this.speechService) {
-        this.speechService.stopListening();
-      }
-
+      let response;
       try {
-        // Mostrar indicador de procesamiento
-        this.uiService.addMessage("Sistema", "💭 Procesando tu mensaje...");
-
-        // En móviles, asegurarnos de que el avatar permanezca visible
-        if (this.isMobile) {
-          this.adjustMobileLayout();
-        }
-
-        // Obtener respuesta
-        const response = await this.llmService.getResponse(userMessage);
-
-        // Procesar respuesta
-        if (response && response.trim()) {
-          // Mostrar respuesta con emojis en UI
-          const messageElement = this.uiService.addSystemMessage(
-            response,
-            false,
-            true
-          );
-
-          // Limpiar emoticonos para la síntesis de voz
-          const responseForSpeech = response
-            .replace(
-              /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
-              ""
-            )
-            .trim();
-
-          // Forzar scroll al final en todos los dispositivos
-          this.uiService.scrollToBottom();
-
-          // Preparamos el entorno para la síntesis
-          if (window.speechSynthesis) {
-            window.speechSynthesis.cancel(); // Cancelar cualquier síntesis previa
-          }
-
-          // Sintetizar voz si está disponible
-          if (this.speechService) {
-            console.log("INICIANDO SÍNTESIS DE VOZ PARA RESPUESTA");
-            try {
-              // Pequeña pausa antes de comenzar a hablar (ayuda con la sincronización)
-              await new Promise((resolve) => setTimeout(resolve, 300));
-
-              // Asegurarnos que el usuario puede ver a Scooby antes de que comience a hablar
-              if (this.isMobile) {
-                this.uiService.scrollToBottom();
-              }
-
-              // Mostrar el Scooby hablando visualmente
-              this.uiService.showSpeakingScooby();
-              this.isSpeaking = true;
-              this.uiService.updateButtonStates(false, false, true);
-
-              // Agregar visual cue (opcional) al mensaje
-              if (messageElement) {
-                messageElement.classList.add("current-speaking");
-              }
-
-              // Iniciar la síntesis con opciones mejoradas
-              const speakingPromise = this.speechService.speak(
-                responseForSpeech,
-                {
-                  volume: 1.0,
-                  force: true,
-                  rate: 0.9, // Ligeramente más lento para mejor comprensión
-                }
-              );
-
-              // Esperar a que termine la síntesis de voz
-              await speakingPromise;
-
-              // Mantener la animación un poco más antes de terminar
-              await new Promise((resolve) => setTimeout(resolve, 500));
-
-              console.log("Respuesta reproducida correctamente");
-            } catch (error) {
-              console.error("Error al sintetizar voz de respuesta:", error);
-
-              // Si falla la síntesis automática, ofrecer botón para reproducir manualmente
-              if (
-                messageElement &&
-                !messageElement.querySelector(".read-message-btn")
-              ) {
-                this.addManualPlayButton(messageElement, responseForSpeech);
-              }
-            } finally {
-              // Asegurarnos de restablecer el estado correcto
-              if (messageElement) {
-                messageElement.classList.remove("current-speaking");
-              }
-              this.isSpeaking = false;
-              this.uiService.showSilentScooby();
-              this.uiService.updateButtonStates(false, false, false);
-              console.log("Finalizada síntesis de voz de respuesta");
-            }
-          } else {
-            console.error(
-              "El servicio de voz no está disponible para síntesis de respuesta"
-            );
-          }
-        } else {
-          throw new Error("No se recibió respuesta del modelo");
-        }
+        response = await this.llmService.getResponse(userMessage);
+        console.log("Respuesta obtenida:", response);
       } catch (error) {
-        console.error("Error al procesar mensaje:", error);
-        this.uiService.showError("Error: " + error.message);
-        this.uiService.showSilentScooby();
-      } finally {
-        // Actualizar estado
-        this.isProcessing = false;
-        this.uiService.updateButtonStates(false, false, false);
+        console.error("Error al obtener respuesta:", error);
+        throw new Error(`Error al procesar tu mensaje: ${error.message}`);
+      }
 
-        // Asegurar que el scroll está al final después de todo el proceso
-        if (this.isMobile) {
-          setTimeout(() => this.uiService.scrollToBottom(), 300);
+      // Verificar que la respuesta existe
+      if (!response || response.trim().length === 0) {
+        throw new Error("No se obtuvo una respuesta válida");
+      }
+
+      // Guardar para continuar respuesta después
+      this.lastResponse = response;
+
+      // Crear elemento para la respuesta
+      const responseElement = document.createElement("div");
+      responseElement.className = "message response";
+
+      // Añadir la respuesta al chat primero como texto
+      const messageElement = document.createElement("div");
+      messageElement.className = "message-bubble dog-bubble";
+      messageElement.textContent = response;
+      responseElement.appendChild(messageElement);
+
+      // Agregar la respuesta al chat
+      if (this.conversation) {
+        this.conversation.appendChild(responseElement);
+        this.conversation.scrollTop = this.conversation.scrollHeight;
+      }
+
+      // Sintetizar respuesta si hay soporte de voz
+      if (this.isVoiceSupported && this.speechService) {
+        try {
+          await this.speechService.speak(response);
+        } catch (error) {
+          console.error("Error en síntesis de voz:", error);
+          // Continuar sin síntesis
         }
       }
+
+      // Mostrar botón para continuar la conversación
+      if (this.continueBtn) {
+        this.continueBtn.classList.remove("d-none");
+      }
+
+      // Animar Scooby callado al terminar de hablar
+      this.playScoobyQuiet();
     } catch (error) {
       console.error("Error al procesar mensaje:", error);
-      this.uiService.showError("Error: " + error.message);
-      this.uiService.showSilentScooby();
+      this.addSystemMessage(`Error: ${error.message}`);
+      this.playScoobyQuiet();
     } finally {
-      // Actualizar estado
-      this.isProcessingMessage = false;
+      // Reactivar botones al finalizar
+      if (this.talkBtn && this.isVoiceSupported) this.talkBtn.disabled = false;
+      if (this.sendBtn) this.sendBtn.disabled = false;
+      if (this.textInput) {
+        this.textInput.disabled = false;
+        this.textInput.focus();
+      }
+
+      // Restablecer estado de procesamiento
+      this.isProcessing = false;
     }
   }
 
@@ -1399,54 +1317,65 @@ class ScoobyApp {
     console.log("Iniciando reconocimiento de voz...");
 
     try {
-      // Mostrar feedback visual inmediato (para que el usuario sepa que se procesó su clic)
-      if (this.talkBtn) {
-        this.talkBtn.classList.add("btn-recording");
-        this.talkBtn.classList.remove("btn-success");
-        this.talkBtn.innerHTML =
+      // Mostrar feedback visual inmediato
+      const talkBtn = document.getElementById("talk-btn");
+      const stopBtn = document.getElementById("stop-btn");
+
+      if (talkBtn) {
+        talkBtn.classList.add("btn-recording");
+        talkBtn.classList.remove("btn-success");
+        talkBtn.innerHTML =
           '<i class="fas fa-microphone-alt me-1"></i> Iniciando...';
       }
 
-      if (this.stopBtn) {
-        this.stopBtn.disabled = false;
+      if (stopBtn) {
+        stopBtn.disabled = false;
       }
 
-      // Verificar permisos primero (puede ser necesario en algunos navegadores)
+      // Verificar permisos del micrófono
       navigator.mediaDevices
         .getUserMedia({ audio: true })
         .then((stream) => {
-          // Detener el stream inmediatamente, solo lo necesitamos para verificar permisos
+          // Detener el stream inmediatamente
           stream.getTracks().forEach((track) => track.stop());
 
-          // Una vez confirmados los permisos, iniciar el reconocimiento
-          const started = this.speechService.startListening();
-
-          if (started) {
-            // Mostrar mensaje de estado
-            this.uiService.addMessage(
-              "Sistema",
-              "🎤 Escuchando... Di algo como '¿Qué puedes hacer?' o '¡Hola Scooby!'"
-            );
-          } else {
-            throw new Error("No se pudo iniciar el reconocimiento");
+          // Reiniciar el servicio de reconocimiento antes de iniciar
+          if (this.speechService.recognition) {
+            this.speechService.recognition.abort();
+            this.speechService.recognition = null;
           }
+
+          // Inicializar nuevo reconocimiento
+          this.speechService.initRecognition();
+
+          // Iniciar el reconocimiento con un pequeño retraso
+          setTimeout(() => {
+            const started = this.speechService.startListening();
+            if (started) {
+              this.uiService.addMessage(
+                "Sistema",
+                "🎤 Escuchando... Di algo como '¿Qué puedes hacer?' o '¡Hola Scooby!'"
+              );
+            } else {
+              throw new Error("No se pudo iniciar el reconocimiento");
+            }
+          }, 500);
         })
         .catch((error) => {
           console.error("Error al acceder al micrófono:", error);
 
           // Restaurar estado visual
-          if (this.talkBtn) {
-            this.talkBtn.classList.remove("btn-recording");
-            this.talkBtn.classList.add("btn-success");
-            this.talkBtn.innerHTML =
-              '<i class="fas fa-microphone me-1"></i> Hablar';
+          if (talkBtn) {
+            talkBtn.classList.remove("btn-recording");
+            talkBtn.classList.add("btn-success");
+            talkBtn.innerHTML = '<i class="fas fa-microphone me-1"></i> Hablar';
           }
 
-          if (this.stopBtn) {
-            this.stopBtn.disabled = true;
+          if (stopBtn) {
+            stopBtn.disabled = true;
           }
 
-          // Mostrar error específico según el tipo
+          // Mostrar error específico
           if (error.name === "NotAllowedError") {
             this.uiService.showError(
               "Por favor, permite el acceso al micrófono para poder usar el reconocimiento de voz"
@@ -1466,15 +1395,14 @@ class ScoobyApp {
       this.uiService.showError("No se pudo iniciar el reconocimiento de voz");
 
       // Restaurar estado visual
-      if (this.talkBtn) {
-        this.talkBtn.classList.remove("btn-recording");
-        this.talkBtn.classList.add("btn-success");
-        this.talkBtn.innerHTML =
-          '<i class="fas fa-microphone me-1"></i> Hablar';
+      if (talkBtn) {
+        talkBtn.classList.remove("btn-recording");
+        talkBtn.classList.add("btn-success");
+        talkBtn.innerHTML = '<i class="fas fa-microphone me-1"></i> Hablar';
       }
 
-      if (this.stopBtn) {
-        this.stopBtn.disabled = true;
+      if (stopBtn) {
+        stopBtn.disabled = true;
       }
     }
   }
@@ -1531,12 +1459,28 @@ class ScoobyApp {
    * Reproduce el video de Scooby hablando
    */
   playScoobyTalking() {
-    if (this.scoobyCalladoVideo && this.scoobyHablandoVideo) {
-      this.scoobyCalladoVideo.classList.add("d-none");
-      this.scoobyHablandoVideo.classList.remove("d-none");
-      this.scoobyHablandoVideo
-        .play()
-        .catch((err) => console.error("Error al reproducir video:", err));
+    console.log("Mostrando Scooby hablando");
+
+    // Ocultar Scooby callado
+    if (this.scoobyCalladoVideo) {
+      this.scoobyCalladoVideo.style.display = "none";
+    }
+
+    // Mostrar Scooby hablando
+    if (this.scoobyHablandoVideo) {
+      this.scoobyHablandoVideo.style.display = "block";
+
+      // Intentar reproducir el video
+      try {
+        const playPromise = this.scoobyHablandoVideo.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.error("Error al reproducir video:", error);
+          });
+        }
+      } catch (error) {
+        console.error("Error al intentar reproducir video:", error);
+      }
     }
   }
 
@@ -1544,12 +1488,23 @@ class ScoobyApp {
    * Muestra el Scooby en silencio
    */
   playScoobyQuiet() {
-    if (this.scoobyCalladoVideo && this.scoobyHablandoVideo) {
-      this.scoobyHablandoVideo.classList.add("d-none");
-      this.scoobyCalladoVideo.classList.remove("d-none");
-      this.scoobyCalladoVideo
-        .play()
-        .catch((err) => console.error("Error al reproducir video:", err));
+    console.log("Mostrando Scooby callado");
+
+    // Ocultar Scooby hablando
+    if (this.scoobyHablandoVideo) {
+      this.scoobyHablandoVideo.style.display = "none";
+
+      // Intentar pausar el video
+      try {
+        this.scoobyHablandoVideo.pause();
+      } catch (error) {
+        console.error("Error al intentar pausar video:", error);
+      }
+    }
+
+    // Mostrar Scooby callado
+    if (this.scoobyCalladoVideo) {
+      this.scoobyCalladoVideo.style.display = "block";
     }
   }
 
@@ -1557,24 +1512,54 @@ class ScoobyApp {
    * Añade un mensaje del sistema
    */
   addSystemMessage(message) {
-    if (this.uiService) {
-      return this.uiService.addSystemMessage(message);
-    } else {
-      console.error("UIService no disponible");
-      return null;
+    if (!message || message.trim().length === 0) return;
+
+    console.log("Mensaje del sistema:", message);
+
+    // Crear elemento para el mensaje
+    const messageElement = document.createElement("div");
+    messageElement.className = "message system-message";
+
+    // Contenido del mensaje
+    const messageBubble = document.createElement("div");
+    messageBubble.className = "message-bubble system-bubble";
+    messageBubble.textContent = message;
+    messageElement.appendChild(messageBubble);
+
+    // Añadir al chat
+    if (this.conversation) {
+      this.conversation.appendChild(messageElement);
+      this.conversation.scrollTop = this.conversation.scrollHeight;
     }
+
+    return messageElement;
   }
 
   /**
    * Añade un mensaje del usuario
    */
   addUserMessage(message) {
-    if (this.uiService) {
-      return this.uiService.addUserMessage(message);
-    } else {
-      console.error("UIService no disponible");
-      return null;
+    if (!message || message.trim().length === 0) return;
+
+    console.log("Mensaje del usuario:", message);
+
+    // Crear elemento para el mensaje
+    const messageElement = document.createElement("div");
+    messageElement.className = "message user-message";
+
+    // Contenido del mensaje
+    const messageBubble = document.createElement("div");
+    messageBubble.className = "message-bubble user-bubble";
+    messageBubble.textContent = message;
+    messageElement.appendChild(messageBubble);
+
+    // Añadir al chat
+    if (this.conversation) {
+      this.conversation.appendChild(messageElement);
+      this.conversation.scrollTop = this.conversation.scrollHeight;
     }
+
+    return messageElement;
   }
 
   createTemporaryButton() {
@@ -1883,59 +1868,50 @@ class ScoobyApp {
    */
   async initializeServices() {
     try {
-      console.log("Inicializando servicios...");
+      console.log("Inicializando servicios con configuración...");
 
-      // Inicializar el servicio de LLM con la API key
-      if (this.llmService) {
-        this.llmService.setApiKey(this.apiKey);
-        console.log("Servicio LLM inicializado");
+      // Verificar que tenemos los servicios necesarios
+      if (!this.llmService || !this.speechService) {
+        throw new Error("Servicios base no inicializados correctamente");
       }
 
-      // Inicializar el servicio de voz
-      if (this.speechService) {
-        // Comprobar si tenemos soporte de voz
-        const voiceSupported = this.speechService.canUseVoiceRecognition();
+      // Obtener la API key
+      const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+      if (!apiKey) {
+        throw new Error("No se encontró la API key de Hugging Face");
+      }
 
-        if (voiceSupported) {
-          console.log("Reconocimiento de voz soportado por el navegador");
-          // Forzar la inicialización del reconocimiento
-          const initResult = this.speechService.initRecognition();
-          console.log(
-            "Resultado de inicialización de reconocimiento:",
-            initResult
-          );
-          this.isVoiceSupported = true;
+      // Asignar la API key directamente a la propiedad del servicio
+      this.llmService.apiKey = apiKey;
+      console.log("API key asignada al servicio LLM");
+
+      // Verificar soporte de voz
+      if (this.speechService) {
+        this.isVoiceSupported = this.speechService.canUseVoiceRecognition();
+        console.log("Soporte de voz verificado:", this.isVoiceSupported);
+
+        if (this.isVoiceSupported) {
+          // Configurar callbacks de voz
+          this.setupSpeechCallbacks();
         } else {
           console.log(
-            "Reconocimiento de voz NO soportado - modo texto activado"
+            "Modo texto activado - reconocimiento de voz no disponible"
           );
-          this.isVoiceSupported = false;
+          this.adaptUIForTextMode();
         }
-      } else {
-        console.warn("No se pudo inicializar el servicio de voz");
-        this.isVoiceSupported = false;
       }
 
-      // Inicializar servicio de imágenes de perros
+      // Inicializar servicio de imágenes
       if (this.dogApi) {
-        console.log("Servicio de imágenes de perros inicializado");
+        console.log("Servicio de imágenes inicializado");
       }
 
-      console.log("Todos los servicios inicializados correctamente");
-
-      // Actualizar UI según el soporte de voz
-      if (!this.isVoiceSupported) {
-        this.adaptUIForTextMode();
-      }
-
+      console.log("Servicios inicializados correctamente");
       return true;
     } catch (error) {
       console.error("Error al inicializar servicios:", error);
-
-      // Incluso con error, intentar usar modo texto
       this.isVoiceSupported = false;
       this.adaptUIForTextMode();
-
       throw error;
     }
   }

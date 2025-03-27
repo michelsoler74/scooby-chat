@@ -5,10 +5,9 @@ import config from "../config.js";
  */
 class HuggingFaceService {
   constructor() {
-    // Cambiar a Mixtral, un modelo más potente con mejor soporte para español
-    this.baseUrl =
-      "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
-    this.apiKey = config.HUGGINGFACE_API_KEY;
+    this.baseUrl = "https://api-inference.huggingface.co/models/";
+    this.model = "microsoft/DialoGPT-medium";
+    this._apiKey = null;
     this.isConnected = false;
     this.conversationHistory = [];
     this.maxHistoryLength = 6;
@@ -53,22 +52,39 @@ Usuario: Hola Scooby
 </s>[INST] Usuario: `;
 
     // Log inicial para verificar la configuración
-    console.log("HuggingFaceService inicializado con Mixtral-8x7B");
+    console.log("HuggingFaceService inicializado con DialoGPT-medium");
     console.log("URL de la API:", this.baseUrl);
     console.log(`Tipo de dispositivo: ${this.isMobile ? "móvil" : "desktop"}`);
   }
 
+  // Getter y setter para la API key
+  get apiKey() {
+    return this._apiKey;
+  }
+
+  set apiKey(value) {
+    if (!value) {
+      throw new Error("La API key no puede estar vacía");
+    }
+    this._apiKey = value;
+  }
+
+  // Método para verificar si tenemos una API key válida
+  hasValidApiKey() {
+    return Boolean(this._apiKey);
+  }
+
   async checkConnection() {
     try {
-      if (!this.apiKey) {
-        throw new Error("API key no proporcionada");
+      if (!this.hasValidApiKey()) {
+        throw new Error("Se requiere una API key válida para usar el servicio");
       }
 
-      const response = await fetch(this.baseUrl, {
+      const response = await fetch(`${this.baseUrl}${this.model}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this._apiKey}`,
         },
         body: JSON.stringify({
           inputs: "Hola",
@@ -120,8 +136,8 @@ Usuario: Hola Scooby
 
   async getResponse(userMessage) {
     try {
-      if (!this.apiKey) {
-        throw new Error("API key no proporcionada");
+      if (!this.hasValidApiKey()) {
+        throw new Error("Se requiere una API key válida para usar el servicio");
       }
 
       if (!this.isConnected) {
@@ -205,11 +221,11 @@ Usuario: ${userMessage}
 
       const temperature = this.isMobile ? 0.4 : 0.5;
 
-      const response = await fetch(this.baseUrl, {
+      const response = await fetch(`${this.baseUrl}${this.model}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this._apiKey}`,
         },
         body: JSON.stringify({
           inputs: fullPrompt,
