@@ -435,11 +435,18 @@
             class="api-key-input"
             placeholder="Ingresa tu API key de Hugging Face"
           />
-          <small
-            >Se requiere para síntesis de voz y procesamiento de lenguaje</small
+          <small class="text-muted d-block mt-2"
+            >Se requiere para síntesis de voz y procesamiento de lenguaje. Obtén
+            tu API key en
+            <a
+              href="https://huggingface.co/settings/tokens"
+              target="_blank"
+              rel="noopener noreferrer"
+              >huggingface.co/settings/tokens</a
+            ></small
           >
         </div>
-        <button id="save-config-btn" class="save-config-btn">
+        <button id="save-config-btn" class="save-config-btn mt-3">
           Guardar configuración
         </button>
       </div>
@@ -571,438 +578,103 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Cargar scripts en el orden correcto - SOLO UNA VEZ -->
-    <script src="src/js/services/SpeechService.js"></script>
-    <script src="src/js/services/UIService.js"></script>
-    <script src="src/js/services/HuggingFaceService.js"></script>
-    <script src="src/js/services/DogApi.js"></script>
-    <script src="src/js/services/MonitorUI.js"></script>
-    <!-- Solo cargar app.js UNA VEZ y como módulo para asegurar que se carga después de los servicios -->
-    <script type="module" src="src/js/app.js?v=1.4"></script>
-
-    <!-- Script para verificar que la aplicación se carga correctamente -->
+    <!-- Script de configuración -->
     <script>
-      window.addEventListener("load", function () {
-        console.log("Verificando carga de Scooby App...");
-
-        // Incrementar el tiempo de espera de 3 a 8 segundos
-        // para dar más tiempo a la inicialización
-        setTimeout(function () {
-          if (!window.app || !window.app.isInitialized) {
-            console.error(
-              "La aplicación no se inicializó correctamente después de 8 segundos"
-            );
-
-            // Intento adicional de inicialización
-            if (window.app) {
-              console.log(
-                "Intentando inicialización manual de la aplicación..."
-              );
-              try {
-                // Establecer la propiedad manualmente
-                window.app.isInitialized = true;
-
-                // Intentar inicializar servicios si existen
-                if (typeof window.app.initializeServices === "function") {
-                  window.app
-                    .initializeServices()
-                    .catch((e) =>
-                      console.warn("Error en inicialización tardía:", e)
-                    );
-                }
-
-                console.log(
-                  "Inicialización manual completada, no se mostrará botón de emergencia"
-                );
-                return; // No mostrar botón de emergencia si logramos inicializar
-              } catch (e) {
-                console.error("Falló la inicialización manual:", e);
-              }
-            }
-
-            // Crear un botón de emergencia para iniciar manualmente
-            const emergencyBtn = document.createElement("button");
-            emergencyBtn.textContent = "🐕 Iniciar Scooby (modo de emergencia)";
-            emergencyBtn.className = "btn btn-danger btn-lg";
-            emergencyBtn.style.position = "fixed";
-            emergencyBtn.style.top = "50%";
-            emergencyBtn.style.left = "50%";
-            emergencyBtn.style.transform = "translate(-50%, -50%)";
-            emergencyBtn.style.zIndex = "99999";
-            emergencyBtn.style.padding = "20px 40px";
-
-            // Al hacer clic en el botón de emergencia
-            emergencyBtn.onclick = function () {
-              try {
-                // Si hay una app, intentar inicialización manual primero
-                if (window.app) {
-                  console.log("Intentando inicialización de emergencia...");
-                  if (typeof window.app.init === "function") {
-                    window.app
-                      .init()
-                      .catch((e) =>
-                        console.warn("Error en init de emergencia:", e)
-                      );
-                  }
-                  window.app.isInitialized = true;
-
-                  // Ocultar botón de emergencia
-                  emergencyBtn.style.opacity = "0";
-                  setTimeout(() => emergencyBtn.remove(), 500);
-                  return;
-                }
-
-                // Si no funciona, recargar completamente
-                location.reload(true);
-              } catch (e) {
-                console.error("Error en reinicio de emergencia:", e);
-                // Si todo falla, recargar
-                location.reload(true);
-              }
-            };
-
-            document.body.appendChild(emergencyBtn);
-          }
-        }, 8000); // Incrementado de 3000 a 8000 ms
-      });
-    </script>
-
-    <!-- Script para verificar el estado del micrófono y gestionar tooltip -->
-    <script>
-      document.addEventListener("DOMContentLoaded", async () => {
-        const micStatus = document.getElementById("mic-status");
-
-        // Configurar el tooltip de ayuda
-        const helpToggle = document.getElementById("help-toggle");
-        const micHelpTooltip = document.getElementById("mic-help-tooltip");
-
-        if (helpToggle && micHelpTooltip) {
-          console.log("Configurando eventos del tooltip");
-
-          // Detectar si es dispositivo móvil
-          const isMobile = window.innerWidth <= 768 || "ontouchstart" in window;
-
-          if (isMobile) {
-            // En móvil solo mostrar/ocultar con clic
-            helpToggle.addEventListener("click", function (event) {
-              event.preventDefault();
-              event.stopPropagation();
-              console.log("Clic en botón de ayuda (móvil)");
-              micHelpTooltip.classList.toggle("show-persistent");
-            });
-
-            // Añadir evento para cerrar tooltip al hacer clic en la X
-            micHelpTooltip.addEventListener("click", function (event) {
-              if (
-                event.target === micHelpTooltip ||
-                (event.clientX >
-                  micHelpTooltip.getBoundingClientRect().right - 30 &&
-                  event.clientY <
-                    micHelpTooltip.getBoundingClientRect().top + 30)
-              ) {
-                console.log("Cerrando tooltip (móvil)");
-                micHelpTooltip.classList.remove("show-persistent");
-                micHelpTooltip.classList.remove("show");
-              }
-            });
-
-            // Cerrar al hacer clic en cualquier parte del documento
-            document.addEventListener("click", function (event) {
-              if (
-                !micHelpTooltip.contains(event.target) &&
-                event.target !== helpToggle
-              ) {
-                micHelpTooltip.classList.remove("show-persistent");
-                micHelpTooltip.classList.remove("show");
-              }
-            });
-          } else {
-            // En desktop usar hover y clic
-            helpToggle.addEventListener("mouseenter", () => {
-              console.log("Mouse enter en botón de ayuda");
-              micHelpTooltip.classList.add("show");
-            });
-
-            helpToggle.addEventListener("mouseleave", () => {
-              console.log("Mouse leave en botón de ayuda");
-              if (!micHelpTooltip.classList.contains("show-persistent")) {
-                micHelpTooltip.classList.remove("show");
-              }
-            });
-
-            helpToggle.addEventListener("click", () => {
-              console.log("Clic en botón de ayuda");
-              micHelpTooltip.classList.toggle("show-persistent");
-            });
-          }
-
-          // Ocultamos cualquier posible panel de consejos antiguo
-          const oldHelpPanel = document.querySelector(".mic-help-info");
-          if (oldHelpPanel) {
-            oldHelpPanel.style.display = "none";
-            oldHelpPanel.classList.add("d-none");
-          }
-        }
-
-        // Verificar soporte de SpeechRecognition
-        const SpeechRecognition =
-          window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          micStatus.innerHTML =
-            '<small class="text-danger">❌ Tu navegador no soporta reconocimiento de voz. Por favor usa Chrome o Edge.</small>';
-          return;
-        }
-
-        try {
-          console.log("Verificando permisos del micrófono...");
-          console.log("User Agent:", navigator.userAgent);
-
-          // Enumerar dispositivos de audio
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const audioDevices = devices.filter(
-            (device) => device.kind === "audioinput"
-          );
-          console.log("Dispositivos de audio disponibles:", audioDevices);
-
-          if (audioDevices.length === 0) {
-            micStatus.innerHTML =
-              '<small class="text-danger">❌ No se detectó ningún micrófono</small>';
-            return;
-          }
-
-          // Solicitar permisos del micrófono
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-          });
-
-          console.log(
-            "Configuración de audio:",
-            stream.getAudioTracks()[0].getSettings()
-          );
-          micStatus.innerHTML =
-            '<small class="text-success">✅ Micrófono detectado y funcionando</small>';
-
-          // Detener el stream de prueba
-          stream.getTracks().forEach((track) => track.stop());
-        } catch (error) {
-          console.error("Error al acceder al micrófono:", error);
-          let errorMessage = "❌ Error: ";
-
-          if (error.name === "NotAllowedError") {
-            errorMessage +=
-              "Permiso denegado. Por favor, permite el acceso al micrófono.";
-          } else if (error.name === "NotFoundError") {
-            errorMessage +=
-              "No se encontró ningún micrófono. Verifica que esté conectado.";
-          } else {
-            errorMessage += error.message;
-          }
-
-          micStatus.innerHTML = `<small class="text-danger">${errorMessage}</small>`;
-        }
-
-        // Ajustes específicos para móvil
-        if (window.innerWidth <= 768) {
-          // Asegurarnos de que el área de conversación es scrollable
-          const conversation = document.getElementById("conversation");
-          if (conversation) {
-            conversation.style.overflowY = "auto";
-            conversation.style.webkitOverflowScrolling = "touch";
-          }
-
-          // Ajustar la altura de la ventana en iOS para manejar barra de direcciones
-          const setVh = () => {
-            let vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty("--vh", `${vh}px`);
-          };
-
-          setVh();
-          window.addEventListener("resize", setVh);
-        }
-
-        // Configurar el panel de configuración
+      document.addEventListener("DOMContentLoaded", function () {
+        // Referencias a elementos
         const configToggle = document.getElementById("config-toggle");
         const configPanel = document.getElementById("config-panel");
         const saveConfigBtn = document.getElementById("save-config-btn");
-        const huggingfaceApiKeyInput = document.getElementById(
-          "huggingface-api-key"
-        );
+        const apiKeyInput = document.getElementById("huggingface-api-key");
 
-        // Mostrar la API Key guardada, si existe
-        huggingfaceApiKeyInput.value =
-          localStorage.getItem("HUGGINGFACE_API_KEY") || "";
-
-        if (configToggle && configPanel) {
-          configToggle.addEventListener("click", function () {
-            configPanel.style.display =
-              configPanel.style.display === "none" ||
-              configPanel.style.display === ""
-                ? "block"
-                : "none";
-          });
+        // Mostrar API key guardada si existe
+        const savedApiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+        if (savedApiKey) {
+          apiKeyInput.value = savedApiKey;
         }
 
-        if (saveConfigBtn) {
-          saveConfigBtn.addEventListener("click", function () {
-            const apiKey = huggingfaceApiKeyInput.value.trim();
-            if (apiKey) {
-              localStorage.setItem("HUGGINGFACE_API_KEY", apiKey);
-              alert(
-                "¡Configuración guardada! Recarga la página para aplicar los cambios."
-              );
-              configPanel.style.display = "none";
-            } else {
-              alert("Por favor, ingresa una API key válida.");
-            }
-          });
+        // Toggle del panel de configuración
+        configToggle.addEventListener("click", function () {
+          const isVisible = configPanel.style.display === "block";
+          configPanel.style.display = isVisible ? "none" : "block";
+        });
+
+        // Guardar configuración
+        saveConfigBtn.addEventListener("click", function () {
+          const apiKey = apiKeyInput.value.trim();
+
+          if (!apiKey) {
+            alert("Por favor, ingresa una API key válida");
+            return;
+          }
+
+          try {
+            // Guardar API key
+            localStorage.setItem("HUGGINGFACE_API_KEY", apiKey);
+
+            // Mostrar mensaje de éxito
+            alert(
+              "¡API key guardada correctamente! La página se recargará para aplicar los cambios."
+            );
+
+            // Ocultar panel
+            configPanel.style.display = "none";
+
+            // Recargar la página
+            location.reload();
+          } catch (error) {
+            console.error("Error al guardar la configuración:", error);
+            alert(
+              "Error al guardar la configuración. Por favor, intenta de nuevo."
+            );
+          }
+        });
+
+        // Si no hay API key, mostrar el panel automáticamente
+        if (!savedApiKey) {
+          configPanel.style.display = "block";
         }
       });
     </script>
 
-    <!-- Script adicional para manejar botón de inicio -->
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const startBtn = document.getElementById("start-app-btn");
-        if (startBtn) {
-          startBtn.addEventListener("click", function () {
-            try {
-              startBtn.textContent = "Iniciando...";
-              startBtn.disabled = true;
+    <!-- Cargar módulos JavaScript -->
+    <script type="module">
+      import ScoobyApp from "./src/js/app.js";
 
-              // Si la app ya existe, intentar inicializar
-              if (window.app) {
-                console.log("Iniciando manualmente la aplicación");
+      // Esperar a que el DOM esté completamente cargado
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          console.log("🚀 Iniciando ScoobyApp...");
 
-                // Intentar inicializar si aún no lo está
-                if (
-                  !window.app.isInitialized &&
-                  typeof window.app.init === "function"
-                ) {
-                  window.app
-                    .init()
-                    .catch((e) => console.warn("Error al iniciar:", e));
-                } else {
-                  // Si ya está inicializada, simplemente mostrar mensaje
-                  console.log("La aplicación ya está inicializada");
-
-                  // Verificar si hay mensajes en el chat
-                  const conversation = document.getElementById("conversation");
-                  if (conversation && conversation.children.length === 0) {
-                    // Si no hay mensajes, mostrar mensaje de bienvenida
-                    if (typeof window.app.showWelcomeMessage === "function") {
-                      window.app
-                        .showWelcomeMessage()
-                        .catch((e) =>
-                          console.warn("Error al mostrar bienvenida:", e)
-                        );
-                    }
-                  }
-                }
-
-                // Actualizar botón después de un tiempo
-                setTimeout(() => {
-                  startBtn.textContent = "✅ Iniciado";
-                  startBtn.classList.remove("btn-success");
-                  startBtn.classList.add("btn-outline-success");
-                }, 1000);
-              } else {
-                // Si no hay app, recargar página
-                console.warn("No se encontró la aplicación, recargando...");
-                location.reload(true);
-              }
-            } catch (error) {
-              console.error("Error al iniciar app:", error);
-              startBtn.textContent = "❌ Error";
-              startBtn.disabled = false;
+          // Verificar API Key
+          const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
+          if (!apiKey) {
+            console.warn("⚠️ No se encontró API Key de Hugging Face");
+            // Mostrar panel de configuración
+            const configPanel = document.getElementById("config-panel");
+            if (configPanel) {
+              configPanel.style.display = "block";
             }
-          });
+            return;
+          }
+
+          // Crear instancia de la aplicación
+          window.app = new ScoobyApp();
+
+          // Inicializar la aplicación
+          await window.app.init();
+
+          console.log("🎉 Aplicación inicializada correctamente");
+        } catch (error) {
+          console.error("❌ Error al inicializar la aplicación:", error);
+          // Mostrar mensaje de error al usuario
+          const errorMessage = document.createElement("div");
+          errorMessage.className = "alert alert-danger";
+          errorMessage.textContent =
+            "Error al inicializar la aplicación. Por favor, verifica tu API Key y recarga la página.";
+          document.body.prepend(errorMessage);
         }
       });
-    </script>
-
-    <!-- Script para detectar errores globales y mostrar botón de emergencia -->
-    <script>
-      (function () {
-        // Agregar detector de errores global
-        window.addEventListener("error", function (event) {
-          console.error("Error global detectado:", event);
-
-          // Mostrar botón de emergencia
-          const emergencyBtn = document.getElementById(
-            "emergency-btn-container"
-          );
-          if (emergencyBtn) {
-            emergencyBtn.style.display = "block";
-          }
-        });
-
-        // Configurar el botón de emergencia
-        document.addEventListener("DOMContentLoaded", function () {
-          const emergencyBtn = document.getElementById("emergency-restart-btn");
-          if (emergencyBtn) {
-            emergencyBtn.addEventListener("click", function () {
-              try {
-                if (
-                  window.app &&
-                  typeof window.app.resetApplication === "function"
-                ) {
-                  // Intentar reiniciar la aplicación
-                  window.app.resetApplication();
-
-                  // Ocultar el botón
-                  document.getElementById(
-                    "emergency-btn-container"
-                  ).style.display = "none";
-                } else {
-                  // Si no hay método de reinicio, recargar la página
-                  location.reload(true);
-                }
-              } catch (e) {
-                console.error("Error al reiniciar de emergencia:", e);
-                // Si todo falla, recargar la página
-                location.reload(true);
-              }
-            });
-          }
-
-          // También detectar si no hay respuesta por más de 10 segundos
-          let lastActivity = Date.now();
-          const activityCheck = () => {
-            const now = Date.now();
-            if (
-              now - lastActivity > 10000 &&
-              window.app &&
-              window.app.isProcessing
-            ) {
-              console.warn(
-                "Inactividad detectada por más de 10 segundos mientras se procesa"
-              );
-              // Mostrar botón de emergencia
-              const emergencyBtn = document.getElementById(
-                "emergency-btn-container"
-              );
-              if (emergencyBtn) {
-                emergencyBtn.style.display = "block";
-              }
-            }
-            lastActivity = now;
-          };
-
-          // Verificar cada 5 segundos
-          setInterval(activityCheck, 5000);
-
-          // Actualizar timestamp de actividad en interacciones de usuario
-          ["click", "keydown", "mousemove", "touchstart"].forEach((event) => {
-            document.addEventListener(event, () => {
-              lastActivity = Date.now();
-            });
-          });
-        });
-      })();
     </script>
   </body>
 </html>

@@ -328,142 +328,84 @@ class SpeechService {
   }
 
   /**
-   * Sintetiza voz a partir de un texto
+   * Sintetiza voz a partir de texto
    * @param {string} text - Texto a sintetizar
-   * @param {Object} options - Opciones adicionales
-   * @return {Promise} Promesa que se resuelve cuando termina la síntesis
+   * @param {Object} options - Opciones de síntesis
+   * @returns {Promise} - Promesa que se resuelve cuando termina la síntesis
    */
   async speak(text, options = {}) {
     return new Promise(async (resolve, reject) => {
       try {
-        // Verificar soporte de síntesis
-        if (!this.isSpeechSynthesisSupported || !this.synth) {
-          console.warn("Síntesis de voz no disponible");
-          if (this.onSpeakEnd) this.onSpeakEnd();
-          reject(new Error("Síntesis de voz no soportada"));
-          return;
+        if (!this.isSpeechSynthesisSupported) {
+          throw new Error("Síntesis de voz no soportada");
         }
 
-        // Cancelar síntesis anterior si existe
-        await this.cancelSpeech();
-
-        // Asegurarse de que las voces estén cargadas
-        if (!this.isVoiceLoaded || !this.selectedVoice) {
-          console.log("Intentando cargar voces nuevamente...");
-          await new Promise((resolve) => {
-            if (
-              typeof speechSynthesis.getVoices === "function" &&
-              speechSynthesis.getVoices().length > 0
-            ) {
-              this.loadVoices();
-              resolve();
-            } else if ("onvoiceschanged" in speechSynthesis) {
-              speechSynthesis.onvoiceschanged = () => {
-                this.loadVoices();
-                resolve();
-              };
-            } else {
-              setTimeout(() => {
-                this.loadVoices();
-                resolve();
-              }, 1000);
-            }
-          });
+        // Notificar inicio de habla
+        if (this.onSpeakStart) {
+          this.onSpeakStart();
         }
 
-        // Crear nueva utterance
-        this.utterance = new SpeechSynthesisUtterance(text);
+        // Mostrar video de Scooby hablando
+        const scoobyHablando = document.getElementById("scooby-hablando");
+        const scoobyCallado = document.getElementById("scooby-callado");
 
-        // Configurar opciones
-        this.utterance.volume = options.volume || 1.0;
-        this.utterance.rate = options.rate || 0.9;
-        this.utterance.pitch = options.pitch || 1.0;
-
-        // Establecer voz
-        if (this.selectedVoice) {
-          this.utterance.voice = this.selectedVoice;
-          this.utterance.lang = this.selectedVoice.lang;
-        } else {
-          console.warn(
-            "No se encontró una voz adecuada, usando configuración por defecto"
-          );
-          this.utterance.lang = "es-ES";
-        }
-
-        // Sistema de reintentos
-        let attempts = 0;
-        const maxAttempts = 3;
-        const attemptSpeech = async () => {
+        if (scoobyHablando && scoobyCallado) {
+          scoobyCallado.style.display = "none";
+          scoobyHablando.style.display = "block";
+          scoobyHablando.style.opacity = "1";
+          scoobyHablando.style.visibility = "visible";
           try {
-            if (attempts >= maxAttempts) {
-              throw new Error(`Fallaron ${maxAttempts} intentos de síntesis`);
-            }
+            await scoobyHablando.play();
+          } catch (e) {
+            console.warn("Error al reproducir video hablando:", e);
+          }
+        }
 
-            attempts++;
-            console.log(`Intento de síntesis #${attempts}`);
+        // Crear y configurar el utterance
+        this.utterance = new SpeechSynthesisUtterance(text);
+        this.utterance.voice = this.selectedVoice;
+        this.utterance.lang = this.preferredLang;
+        this.utterance.rate = options.rate || 1;
+        this.utterance.pitch = options.pitch || 1;
+        this.utterance.volume = options.volume || 1;
 
-            // Asegurarse que el contexto de síntesis está activo
-            if (this.synth.speaking) {
-              console.log("Cancelando síntesis anterior...");
-              this.synth.cancel();
-              await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-
-            // Configurar callbacks
-            this.utterance.onstart = () => {
-              console.log("Síntesis iniciada");
-              if (this.onSpeakStart) this.onSpeakStart();
-            };
-
-            this.utterance.onend = () => {
-              console.log("Síntesis completada");
-              if (this.onSpeakEnd) this.onSpeakEnd();
-              resolve();
-            };
-
-            this.utterance.onerror = async (event) => {
-              console.error(`Error en síntesis (intento ${attempts}):`, event);
-              if (attempts < maxAttempts) {
-                console.log("Reintentando síntesis...");
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                attemptSpeech();
-              } else {
-                if (this.onSpeakEnd) this.onSpeakEnd();
-                reject(
-                  new Error(
-                    `Error en síntesis después de ${maxAttempts} intentos`
-                  )
-                );
-              }
-            };
-
-            // Intentar síntesis
-            this.synth.speak(this.utterance);
-
-            // Verificar si la síntesis comenzó
-            setTimeout(() => {
-              if (!this.synth.speaking && attempts < maxAttempts) {
-                console.log("La síntesis no comenzó, reintentando...");
-                attemptSpeech();
-              }
-            }, 500);
-          } catch (error) {
-            console.error(`Error en intento ${attempts}:`, error);
-            if (attempts < maxAttempts) {
-              await new Promise((resolve) => setTimeout(resolve, 500));
-              attemptSpeech();
-            } else {
-              if (this.onSpeakEnd) this.onSpeakEnd();
-              reject(error);
+        // Manejar el fin del habla
+        this.utterance.onend = async () => {
+          // Volver al video callado
+          if (scoobyHablando && scoobyCallado) {
+            scoobyHablando.style.display = "none";
+            scoobyCallado.style.display = "block";
+            scoobyCallado.style.opacity = "1";
+            scoobyCallado.style.visibility = "visible";
+            try {
+              await scoobyCallado.play();
+            } catch (e) {
+              console.warn("Error al volver al video callado:", e);
             }
           }
+
+          if (this.onSpeakEnd) {
+            this.onSpeakEnd();
+          }
+          resolve();
         };
 
-        // Iniciar sistema de reintentos
-        await attemptSpeech();
+        // Manejar errores
+        this.utterance.onerror = (event) => {
+          console.error("Error en síntesis de voz:", event);
+          if (this.onSpeakEnd) {
+            this.onSpeakEnd();
+          }
+          reject(event);
+        };
+
+        // Iniciar síntesis
+        window.speechSynthesis.speak(this.utterance);
       } catch (error) {
-        console.error("Error crítico en síntesis:", error);
-        if (this.onSpeakEnd) this.onSpeakEnd();
+        console.error("Error al sintetizar voz:", error);
+        if (this.onSpeakEnd) {
+          this.onSpeakEnd();
+        }
         reject(error);
       }
     });
@@ -592,6 +534,49 @@ class SpeechService {
       return diagnosis;
     }
   }
+
+  // Método para reiniciar el reconocimiento de voz completamente
+  restartRecognition() {
+    try {
+      // Detener primero el reconocimiento actual si está activo
+      if (this.isListening) {
+        this.stopListening();
+      }
+
+      // Liberar la instancia actual
+      if (this.recognition) {
+        try {
+          this.recognition.abort();
+        } catch (e) {
+          console.warn("Error al abortar reconocimiento:", e);
+        }
+        this.recognition = null;
+      }
+
+      // Esperar un breve momento
+      console.log("Reiniciando sistema de reconocimiento...");
+
+      // Inicializar nuevo reconocimiento
+      const success = this.initRecognition();
+
+      if (success) {
+        console.log("Sistema de reconocimiento reiniciado correctamente");
+      } else {
+        console.error("No se pudo reiniciar el sistema de reconocimiento");
+      }
+
+      return success;
+    } catch (error) {
+      console.error("Error al reiniciar reconocimiento:", error);
+      return false;
+    }
+  }
+
+  // Método para detener el reconocimiento (alias de stopListening para compatibilidad)
+  stopRecognition() {
+    return this.stopListening();
+  }
 }
 
+// Exportar la clase SpeechService
 export default SpeechService;

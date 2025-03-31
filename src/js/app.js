@@ -26,6 +26,8 @@ class ScoobyApp {
     this.displayName = "Scooby";
     this.voiceIndex = 0;
     this.maxAttempts = 3;
+    this.speechRetryCount = 0;
+    this.maxSpeechRetries = 3; // Máximo número de reintentos para reconocimiento de voz
 
     // Hacemos visible la instancia para debugging
     window.app = this;
@@ -44,6 +46,12 @@ class ScoobyApp {
     try {
       console.log("Inicializando servicios básicos...");
 
+      // Obtener la API key de Hugging Face
+      const huggingFaceKey = config.HUGGINGFACE_API_KEY;
+      if (!huggingFaceKey) {
+        throw new Error("No se encontró una API key válida de Hugging Face");
+      }
+
       // Inicializar servicio de voz
       this.speechService = new SpeechService();
 
@@ -52,6 +60,7 @@ class ScoobyApp {
 
       // Inicializar servicio LLM (Hugging Face)
       this.llmService = new HuggingFaceService();
+      this.llmService.apiKey = huggingFaceKey; // Establecer la API key
 
       // Inicializar servicio de imágenes
       this.dogApi = new DogApi();
@@ -86,19 +95,34 @@ class ScoobyApp {
       // Mostrar un mensaje de inicialización
       this.addSystemMessage("Inicializando Scooby Chat...");
 
-      // Inicializar audio y TTS
-      await this.initAudio();
-
-      // Inicializar servicios
-      const servicesInitialized = await this.initializeServices();
-      if (!servicesInitialized) {
-        throw new Error(
-          "No se pudieron inicializar los servicios correctamente"
+      // Inicializar audio y TTS - No bloqueamos si falla
+      try {
+        await this.initAudio();
+      } catch (audioError) {
+        console.warn(
+          "Error al inicializar audio, continuando de todas formas:",
+          audioError
         );
       }
 
-      // Verificar conexión con el modelo
-      await this.checkModelConnection();
+      // Inicializar servicios - Importante, pero podemos seguir con servicios parciales
+      let servicesInitialized = false;
+      try {
+        servicesInitialized = await this.initializeServices();
+      } catch (serviceError) {
+        console.error("Error al inicializar servicios:", serviceError);
+        // No bloqueamos la inicialización completamente
+      }
+
+      // Verificar conexión con el modelo - Si falla, mostramos error pero continuamos
+      try {
+        await this.checkModelConnection();
+      } catch (connectionError) {
+        console.error("Error de conexión con el modelo:", connectionError);
+        this.addSystemMessage(
+          "⚠️ No se pudo conectar con el modelo. Algunas funciones estarán limitadas."
+        );
+      }
 
       // Configurar callbacks de reconocimiento de voz si está disponible
       if (
@@ -117,13 +141,24 @@ class ScoobyApp {
       }
 
       // Configurar manejadores de eventos
-      this.setupEventHandlers();
-      console.log("Manejadores de eventos configurados correctamente");
+      try {
+        this.setupEventHandlers();
+        console.log("Manejadores de eventos configurados correctamente");
+      } catch (eventsError) {
+        console.warn("Error al configurar eventos:", eventsError);
+      }
 
       // Ajustar layout para dispositivos móviles
       this.adjustMobileLayout();
 
-      // Establecer como inicializada antes de mostrar el mensaje de bienvenida
+      // Activar monitoreo de API - No bloqueante
+      try {
+        this.setupMonitoring();
+      } catch (monitorError) {
+        console.warn("Error al configurar monitoreo:", monitorError);
+      }
+
+      // Establecer como inicializada SIEMPRE, incluso con errores parciales
       this.isInitialized = true;
       this.isInitializing = false;
       console.log("🎉 ScoobyApp inicializada correctamente");
@@ -132,16 +167,29 @@ class ScoobyApp {
       this.simulateUserInteraction();
 
       // Mostrar mensaje de bienvenida
-      await this.showWelcomeMessage();
-
-      // Activar monitoreo de API
-      this.setupMonitoring();
+      try {
+        await this.showWelcomeMessage();
+      } catch (welcomeError) {
+        console.warn("Error al mostrar mensaje de bienvenida:", welcomeError);
+        // Añadir mensaje de bienvenida simple si falla la versión animada
+        this.addSystemMessage("¡Hola! Soy Scooby. ¿En qué puedo ayudarte hoy?");
+      }
 
       // Habilitar botones ahora que todo está listo
       this.enableButtons();
+
+      return true; // Indicar que la inicialización se completó
     } catch (error) {
       console.error("❌ Error al inicializar ScoobyApp:", error);
+
+      // Incluso con error, establecemos isInitialized para evitar timeouts
+      this.isInitialized = true;
+      this.isInitializing = false;
+
+      // Manejamos el error pero permitimos que la aplicación continúe
       this.handleInitializationError(error);
+
+      return false; // Indicar que hubo problemas en la inicialización
     }
   }
 
@@ -173,8 +221,9 @@ class ScoobyApp {
     this.resumeBtn = document.getElementById("resume-btn");
     this.continueBtn = document.getElementById("continue-btn");
     this.clearChatBtn = document.getElementById("clear-chat-btn");
-    this.scoobyCalladoVideo = document.getElementById("scooby-callado");
-    this.scoobyHablandoVideo = document.getElementById("scooby-hablando");
+
+    // Inicializar videos de Scooby inmediatamente
+    this.initializeScoobyVideos();
 
     // Ajustar layout para móviles
     if (this.isMobile) {
@@ -183,6 +232,53 @@ class ScoobyApp {
       window.addEventListener("orientationchange", () =>
         this.adjustMobileLayout()
       );
+    }
+  }
+
+  async initializeScoobyVideos() {
+    // Obtener referencias a los videos
+    this.scoobyCalladoVideo = document.getElementById("scooby-callado");
+    this.scoobyHablandoVideo = document.getElementById("scooby-hablando");
+
+    if (this.scoobyCalladoVideo) {
+      // Configurar el video callado
+      this.scoobyCalladoVideo.style.display = "block";
+      this.scoobyCalladoVideo.style.opacity = "1";
+      this.scoobyCalladoVideo.style.visibility = "visible";
+      this.scoobyCalladoVideo.style.zIndex = "1000";
+      this.scoobyCalladoVideo.muted = true;
+      this.scoobyCalladoVideo.loop = true;
+      this.scoobyCalladoVideo.playsInline = true;
+
+      // Intentar reproducir el video con reintentos
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          await this.scoobyCalladoVideo.play();
+          console.log("Video de Scooby callado reproducido exitosamente");
+          break;
+        } catch (error) {
+          console.warn(
+            `Intento ${attempt} fallido al reproducir video:`,
+            error
+          );
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+      }
+    } else {
+      console.error("No se encontró el video de Scooby callado");
+    }
+
+    if (this.scoobyHablandoVideo) {
+      // Configurar el video hablando
+      this.scoobyHablandoVideo.style.display = "none";
+      this.scoobyHablandoVideo.muted = true;
+      this.scoobyHablandoVideo.loop = true;
+      this.scoobyHablandoVideo.playsInline = true;
+    } else {
+      console.error("No se encontró el video de Scooby hablando");
     }
   }
 
@@ -217,6 +313,23 @@ class ScoobyApp {
     );
 
     try {
+      // Mostrar a Scooby hablando desde el principio
+      if (this.scoobyHablandoVideo && this.scoobyCalladoVideo) {
+        // Ocultar video callado
+        this.scoobyCalladoVideo.style.display = "none";
+
+        // Mostrar y reproducir video hablando
+        this.scoobyHablandoVideo.style.display = "block";
+        this.scoobyHablandoVideo.style.opacity = "1";
+        this.scoobyHablandoVideo.style.visibility = "visible";
+
+        try {
+          await this.scoobyHablandoVideo.play();
+        } catch (e) {
+          console.warn("Error al reproducir video hablando:", e);
+        }
+      }
+
       // Verificar si ya existe un mensaje de bienvenida previo
       const existingWelcomeMessage = document.querySelector(".welcome-message");
       if (existingWelcomeMessage && !isRetry) {
@@ -225,76 +338,12 @@ class ScoobyApp {
         );
 
         // Incluso si ya existe, intentamos reproducirlo por voz, pero limpiando emoticonos
-        let welcomeText =
-          existingWelcomeMessage.textContent ||
-          "¡Scooby-dooby-doo! ¡Hola amigo! Me llamo Scooby y estoy aquí para charlar contigo.";
+        const textToSpeak = existingWelcomeMessage.textContent.replace(
+          /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
+          ""
+        );
 
-        // Limpiar emoticonos del texto antes de la síntesis
-        welcomeText = welcomeText
-          .replace(
-            /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[👋🐕]/gu,
-            ""
-          )
-          .trim();
-
-        // Intentar reproducir el mensaje existente
-        try {
-          // Forzar la activación del audio si es necesario
-          if (window.speechSynthesis) {
-            window.speechSynthesis.cancel(); // Limpiar cualquier síntesis pendiente
-
-            // Intentar activar el contexto de audio
-            try {
-              const audioContext = new (window.AudioContext ||
-                window.webkitAudioContext)();
-              if (audioContext.state === "suspended") {
-                await audioContext.resume();
-              }
-            } catch (e) {
-              console.warn("No se pudo activar el contexto de audio:", e);
-            }
-          }
-
-          this.uiService.showSpeakingScooby();
-          this.isSpeaking = true;
-
-          // Intentar la síntesis con múltiples intentos
-          let attempt = 0;
-          const maxAttempts = 3;
-          let success = false;
-
-          while (!success && attempt < maxAttempts) {
-            attempt++;
-            try {
-              await this.speechService.speak(welcomeText, {
-                volume: 1.0,
-                force: true,
-                rate: 0.9 - attempt * 0.1,
-              });
-              success = true;
-            } catch (error) {
-              console.warn(`Intento ${attempt} fallido:`, error);
-              if (attempt < maxAttempts) {
-                await new Promise((resolve) => setTimeout(resolve, 800));
-              }
-            }
-          }
-
-          if (!success) {
-            throw new Error(
-              "No se pudo reproducir después de múltiples intentos"
-            );
-          }
-
-          return true;
-        } catch (error) {
-          console.error("Error al reproducir mensaje existente:", error);
-          this.addManualPlayButton(existingWelcomeMessage, welcomeText);
-        } finally {
-          this.isSpeaking = false;
-          this.uiService.showSilentScooby();
-        }
-
+        await this.speechService.speak(textToSpeak);
         return true;
       }
 
@@ -325,90 +374,39 @@ class ScoobyApp {
         true
       );
 
-      if (!welcomeElement) {
-        throw new Error("No se pudo crear el elemento de bienvenida");
+      // Si el navegador no soporta voz, agregar botón para reproducir manualmente
+      if (!this.isVoiceSupported) {
+        this.addManualPlayButton(welcomeElement, welcomeMessageForSpeech);
+        return true;
       }
 
-      // Asegurar que el scroll está al final
-      this.uiService.scrollToBottom();
-
-      // Preparar el motor de síntesis
-      if (window.speechSynthesis) {
-        try {
-          // Limpiar cualquier síntesis pendiente
-          window.speechSynthesis.cancel();
-
-          // Forzar carga de voces
-          const voices = window.speechSynthesis.getVoices();
-          console.log(`Voces disponibles: ${voices.length}`);
-
-          // Intentar activar el contexto de audio
-          const audioContext = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          if (audioContext.state === "suspended") {
-            await audioContext.resume();
-          }
-
-          // Simular interacción
-          document.body.click();
-        } catch (e) {
-          console.warn("Error al preparar síntesis:", e);
-        }
-      }
-
-      // Esperar a que todo esté listo
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.isMobile ? 800 : 500)
-      );
-
-      // Mostrar a Scooby hablando
-      this.uiService.showSpeakingScooby();
-      this.isSpeaking = true;
-      this.uiService.updateButtonStates(false, false, true);
-
-      // Intentar la síntesis con múltiples intentos
-      let attempt = 0;
-      const maxAttempts = 3;
-      let success = false;
-
-      while (!success && attempt < maxAttempts) {
-        attempt++;
-        try {
-          console.log(`Intento de síntesis #${attempt}`);
-
-          await this.speechService.speak(welcomeMessageForSpeech, {
-            volume: 1.0,
-            force: true,
-            rate: 0.9 - attempt * 0.1,
-          });
-
-          success = true;
-          console.log(`Síntesis exitosa en intento #${attempt}`);
-
-          // Mantener la animación un momento más
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Error en intento #${attempt}:`, error);
-
-          if (attempt < maxAttempts) {
-            await new Promise((resolve) => setTimeout(resolve, 800));
-          }
-        }
-      }
-
-      if (!success) {
-        console.warn("Todos los intentos de síntesis fallaron");
+      // Intentar reproducir el mensaje por voz
+      try {
+        await this.speechService.speak(welcomeMessageForSpeech);
+        return true;
+      } catch (error) {
+        console.error("Error al reproducir mensaje de bienvenida:", error);
+        // Si falla la voz, agregar botón para reproducción manual
         this.addManualPlayButton(welcomeElement, welcomeMessageForSpeech);
         return false;
       }
-
-      return true;
     } catch (error) {
       console.error("Error general en mensaje de bienvenida:", error);
       return false;
     } finally {
+      // Volver al video callado cuando termine
       this.isSpeaking = false;
-      this.uiService.showSilentScooby();
+      if (this.scoobyCalladoVideo && this.scoobyHablandoVideo) {
+        this.scoobyHablandoVideo.style.display = "none";
+        this.scoobyCalladoVideo.style.display = "block";
+        this.scoobyCalladoVideo.style.opacity = "1";
+        this.scoobyCalladoVideo.style.visibility = "visible";
+        try {
+          await this.scoobyCalladoVideo.play();
+        } catch (e) {
+          console.warn("Error al volver al video callado:", e);
+        }
+      }
       this.uiService.updateButtonStates(false, false, false);
     }
   }
@@ -1177,115 +1175,53 @@ class ScoobyApp {
 
   // Añadir un método para diagnosticar el sistema de voz
   async diagnoseSpeechSystem() {
-    const results = {
-      browserSupport: false,
-      microphoneAvailable: false,
-      permissionsGranted: false,
-      apiKeyAvailable: false,
-      connectionWorks: false,
-    };
-
     try {
-      // 1. Verificar soporte del navegador
-      results.browserSupport = !!(
-        window.SpeechRecognition || window.webkitSpeechRecognition
-      );
-      console.log(
-        `Soporte de reconocimiento en navegador: ${results.browserSupport}`
-      );
+      console.log("Iniciando diagnóstico del sistema de voz...");
 
-      // 2. Verificar disponibilidad de micrófono
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const audioDevices = devices.filter(
-          (device) => device.kind === "audioinput"
+      // Obtener diagnóstico del servicio de voz si está disponible
+      let diagnoseResults = {};
+
+      if (
+        this.speechService &&
+        typeof this.speechService.diagnoseVoiceSupport === "function"
+      ) {
+        diagnoseResults = await this.speechService.diagnoseVoiceSupport();
+        console.log("Resultado de diagnóstico:", diagnoseResults);
+      } else {
+        console.warn(
+          "El servicio de voz no está disponible o no tiene método de diagnóstico"
         );
-        results.microphoneAvailable = audioDevices.length > 0;
-        console.log(
-          `Micrófono disponible: ${results.microphoneAvailable} (${audioDevices.length} dispositivos)`
+        diagnoseResults = {
+          browserSupport: false,
+          microphoneAvailable: false,
+          permissionsGranted: false,
+          recognitionInitialized: false,
+          details: ["❌ No se pudo diagnosticar - servicio no disponible"],
+        };
+      }
+
+      // Mostrar resultado en la interfaz
+      const message = `Diagnóstico del sistema de voz:\n${diagnoseResults.details.join(
+        "\n"
+      )}`;
+      this.addSystemMessage(message);
+
+      // Si hay problemas, mostrar recomendaciones
+      if (
+        !diagnoseResults.browserSupport ||
+        !diagnoseResults.microphoneAvailable ||
+        !diagnoseResults.permissionsGranted
+      ) {
+        this.addSystemMessage(
+          "Recomendaciones:\n- Usa Chrome o Edge para mejor compatibilidad\n- Asegúrate de tener un micrófono conectado\n- Permite el acceso al micrófono cuando el navegador lo solicite"
         );
-      } catch (e) {
-        console.error("Error al enumerar dispositivos:", e);
       }
 
-      // 3. Verificar permisos
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-        results.permissionsGranted = true;
-        stream.getTracks().forEach((track) => track.stop());
-        console.log("Permisos de micrófono concedidos");
-      } catch (e) {
-        results.permissionsGranted = false;
-        console.error("Permisos de micrófono denegados:", e);
-      }
-
-      // 4. Verificar API key
-      results.apiKeyAvailable = !!localStorage.getItem("HUGGINGFACE_API_KEY");
-      console.log(`API key disponible: ${results.apiKeyAvailable}`);
-
-      // 5. Intentar hacer una conexión de prueba si hay API key
-      if (results.apiKeyAvailable) {
-        try {
-          const response = await fetch(
-            "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem(
-                  "HUGGINGFACE_API_KEY"
-                )}`,
-              },
-              body: JSON.stringify({
-                inputs: "Hola",
-              }),
-            }
-          );
-
-          results.connectionWorks = response.ok;
-          console.log(`Conexión a Hugging Face: ${results.connectionWorks}`);
-
-          if (!response.ok) {
-            console.error(
-              `Error de conexión: ${response.status} ${response.statusText}`
-            );
-            const responseText = await response.text();
-            console.error("Detalles:", responseText);
-          }
-        } catch (e) {
-          console.error("Error de conexión:", e);
-        }
-      }
-
-      // Mostrar resumen
-      console.log("Diagnóstico completo:", results);
-
-      // Notificar al usuario
-      let message = "Diagnóstico del sistema de voz:\n";
-      message += `- Navegador compatible: ${
-        results.browserSupport ? "✅" : "❌"
-      }\n`;
-      message += `- Micrófono disponible: ${
-        results.microphoneAvailable ? "✅" : "❌"
-      }\n`;
-      message += `- Permisos concedidos: ${
-        results.permissionsGranted ? "✅" : "❌"
-      }\n`;
-      message += `- API key configurada: ${
-        results.apiKeyAvailable ? "✅" : "❌"
-      }\n`;
-      message += `- Conexión a API funciona: ${
-        results.connectionWorks ? "✅" : "❌"
-      }\n`;
-
-      this.uiService.addSystemMessage(message);
-
-      return results;
+      return diagnoseResults;
     } catch (error) {
-      console.error("Error en diagnóstico:", error);
-      return results;
+      console.error("Error en diagnóstico de voz:", error);
+      this.addSystemMessage(`Error durante el diagnóstico: ${error.message}`);
+      return null;
     }
   }
 
@@ -1351,8 +1287,7 @@ class ScoobyApp {
           setTimeout(() => {
             const started = this.speechService.startListening();
             if (started) {
-              this.uiService.addMessage(
-                "Sistema",
+              this.addSystemMessage(
                 "🎤 Escuchando... Di algo como '¿Qué puedes hacer?' o '¡Hola Scooby!'"
               );
             } else {
@@ -1451,7 +1386,7 @@ class ScoobyApp {
     }
 
     // Informar al usuario
-    this.uiService.addMessage("Sistema", "🛑 Reconocimiento de voz detenido");
+    this.addSystemMessage("🛑 Reconocimiento de voz detenido");
   }
 
   /**
@@ -1874,15 +1809,19 @@ class ScoobyApp {
         throw new Error("Servicios base no inicializados correctamente");
       }
 
-      // Obtener la API key desde localStorage o desde la propiedad de la clase
-      const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY") || this.apiKey;
+      // Obtener la API key desde localStorage
+      const apiKey = localStorage.getItem("HUGGINGFACE_API_KEY");
 
       if (!apiKey) {
+        // Si no hay API key, mostrar el panel de configuración
+        const configPanel = document.getElementById("config-panel");
+        if (configPanel) {
+          configPanel.style.display = "block";
+        }
         throw new Error("No se encontró la API key de Hugging Face");
       }
 
-      // Asignar la API key directamente a la propiedad del servicio
-      // Usamos la propiedad apiKey que ahora tiene un setter en HuggingFaceService
+      // Asignar la API key al servicio
       this.llmService.apiKey = apiKey;
       console.log("API key asignada al servicio LLM");
 
@@ -1892,7 +1831,6 @@ class ScoobyApp {
         console.log("Soporte de voz verificado:", this.isVoiceSupported);
 
         if (this.isVoiceSupported) {
-          // Configurar callbacks de voz
           this.setupSpeechCallbacks();
         } else {
           console.log(
@@ -1900,11 +1838,6 @@ class ScoobyApp {
           );
           this.adaptUIForTextMode();
         }
-      }
-
-      // Inicializar servicio de imágenes
-      if (this.dogApi) {
-        console.log("Servicio de imágenes inicializado");
       }
 
       console.log("Servicios inicializados correctamente");
@@ -2054,9 +1987,9 @@ class ScoobyApp {
       console.log("Adaptando interfaz para modo texto...");
 
       // Deshabilitar botones relacionados con la voz
-      const talkBtn = document.getElementById("talk-btn");
-      const stopBtn = document.getElementById("stop-btn");
-      const resumeBtn = document.getElementById("resume-btn");
+      const talkBtn = document.getElementById("talk-btn") || this.talkBtn;
+      const stopBtn = document.getElementById("stop-btn") || this.stopBtn;
+      const resumeBtn = document.getElementById("resume-btn") || this.resumeBtn;
 
       if (talkBtn) {
         talkBtn.disabled = true;
@@ -2075,7 +2008,7 @@ class ScoobyApp {
       );
 
       // Destacar el input de texto
-      const textInput = document.getElementById("text-input");
+      const textInput = document.getElementById("text-input") || this.textInput;
       if (textInput) {
         textInput.placeholder =
           "Escribe tu mensaje aquí (reconocimiento de voz no disponible)";
@@ -2119,11 +2052,14 @@ class ScoobyApp {
       document.body.appendChild(tooltip);
 
       // Configurar cierre del tooltip
-      document.getElementById("close-tooltip").addEventListener("click", () => {
-        tooltip.style.opacity = "0";
-        tooltip.style.transition = "opacity 0.5s ease";
-        setTimeout(() => tooltip.remove(), 500);
-      });
+      const closeButton = document.getElementById("close-tooltip");
+      if (closeButton) {
+        closeButton.addEventListener("click", () => {
+          tooltip.style.opacity = "0";
+          tooltip.style.transition = "opacity 0.5s ease";
+          setTimeout(() => tooltip.remove(), 500);
+        });
+      }
 
       // Autocierre después de 8 segundos
       setTimeout(() => {
@@ -2175,105 +2111,237 @@ class ScoobyApp {
 
   /**
    * Maneja errores durante la inicialización
+   * @param {Error} error - Error ocurrido durante la inicialización
    */
   handleInitializationError(error) {
-    console.error("Error durante la inicialización:", error);
-    // Agregar un mensaje en la interfaz
-    if (this.uiService) {
-      this.uiService.addSystemMessage(
-        `Error de inicialización: ${error.message}. Intenta recargar la página o presiona el botón de emergencia.`
-      );
-    }
+    console.error("Error durante inicialización:", error);
 
-    // Intentar establecer al menos algunas capacidades básicas
-    if (!this.isInitialized) {
-      // Forzar inicialización parcial para permitir al menos el chat por texto
-      console.log(
-        "Estableciendo inicialización parcial para funcionalidad mínima"
-      );
-      this.isInitialized = true;
+    // Asegurarnos de que la aplicación está marcada como inicializada para evitar el timeout
+    this.isInitialized = true;
+    this.isInitializing = false;
 
-      // Notificar al usuario que hay funcionalidad limitada
-      if (this.uiService) {
-        this.uiService.addSystemMessage(
-          "Scooby está operando en modo limitado. Algunas funciones pueden no estar disponibles."
-        );
-      }
-    }
-  }
-}
+    // Mostrar mensaje de error al usuario
+    let errorMessage = "❌ Ha ocurrido un error durante la inicialización.";
 
-// Inicialización automática de la aplicación cuando se carga el script
-let appInstance = null;
-
-function initApp() {
-  console.log("🚀 Inicializando App desde módulo...");
-
-  try {
-    // Verificar si ya hay una instancia
-    if (window.app) {
-      console.log("Ya existe una instancia de la aplicación");
-      appInstance = window.app;
-
-      // Si la instancia existe pero no está inicializada, inicializarla
+    if (error.message) {
       if (
-        !appInstance.isInitialized &&
-        typeof appInstance.init === "function"
+        error.message.includes("API key") ||
+        error.message.includes("Authorization")
       ) {
-        console.log("Inicializando instancia existente...");
-        appInstance.init().catch((e) => {
-          console.error("Error al inicializar instancia existente:", e);
-          // Mostrar un mensaje de error más visible
-          const errorDiv = document.createElement("div");
-          errorDiv.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            z-index: 9999;
-            text-align: center;
-          `;
-          errorDiv.innerHTML = `
-            <h3>❌ Error - ${e.message}</h3>
-            <p>Intenta recargar la página</p>
-            <button onclick="location.reload()" class="btn btn-danger">Recargar página</button>
-          `;
-          document.body.appendChild(errorDiv);
-        });
+        errorMessage =
+          "❌ Error de API key: Por favor, asegúrate de proporcionar una API key válida de Hugging Face.";
+      } else if (
+        error.message.includes("conexión") ||
+        error.message.includes("connection") ||
+        error.message.includes("network")
+      ) {
+        errorMessage =
+          "❌ Error de conexión: No se pudo conectar con el servicio de Hugging Face. Verifica tu conexión a internet.";
       }
-    } else {
-      // Si no hay instancia, crear una nueva
-      console.log("Creando nueva instancia de la aplicación...");
-      appInstance = new ScoobyApp();
-      window.app = appInstance; // Exponerla globalmente
-
-      // Inicializar con manejo de errores
-      appInstance.init().catch((e) => {
-        console.error("Error durante inicialización:", e);
-        // Mostrar mensaje de error
-        alert("Error al inicializar Scooby: " + e.message);
-      });
     }
 
-    return appInstance;
-  } catch (error) {
-    console.error("Error crítico durante inicialización:", error);
-    alert("Error crítico: " + error.message);
-    return null;
+    try {
+      if (this.uiService) {
+        this.uiService.showError(errorMessage);
+      } else {
+        // Si no hay servicio UI, mostramos un alert como último recurso
+        this.addSystemMessage(errorMessage);
+      }
+    } catch (uiError) {
+      console.error("Error al mostrar mensaje de error:", uiError);
+
+      // Último recurso: añadir mensaje directamente al DOM
+      try {
+        const conversationDiv = document.getElementById("conversation");
+        if (conversationDiv) {
+          const errorDiv = document.createElement("div");
+          errorDiv.className = "system-message error-message";
+          errorDiv.textContent = errorMessage;
+          conversationDiv.appendChild(errorDiv);
+        }
+      } catch (domError) {
+        console.error("Error al añadir mensaje al DOM:", domError);
+      }
+    }
+
+    // Adaptar UI para modo texto si hay error
+    try {
+      this.adaptUIForTextMode();
+    } catch (adaptError) {
+      console.error("Error al adaptar UI para modo texto:", adaptError);
+    }
+
+    // Habilitar al menos el input de texto si es posible
+    try {
+      const textInput = document.getElementById("text-input");
+      const sendBtn = document.getElementById("send-btn");
+
+      if (textInput) {
+        textInput.disabled = false;
+      }
+
+      if (sendBtn) {
+        sendBtn.disabled = false;
+      }
+    } catch (enableError) {
+      console.error("Error al habilitar controles básicos:", enableError);
+    }
+
+    return false;
+  }
+
+  /**
+   * Configura el sistema de monitoreo de la API
+   */
+  setupMonitoring() {
+    try {
+      console.log("Configurando sistema de monitoreo...");
+
+      // Verificar que el monitor UI está disponible globalmente
+      if (!window.monitorUI) {
+        console.warn(
+          "MonitorUI no está disponible globalmente, creando una instancia local"
+        );
+        try {
+          window.monitorUI = new MonitorUI();
+          console.log("MonitorUI instanciado manualmente");
+        } catch (err) {
+          console.error("No se pudo crear una instancia de MonitorUI:", err);
+          return;
+        }
+      }
+
+      // Establecer métodos de registro más robustos
+      this.trackApiCall = (type, tokenCount = 0) => {
+        try {
+          if (
+            window.monitorUI &&
+            typeof window.monitorUI.trackApiCall === "function"
+          ) {
+            window.monitorUI.trackApiCall(type, tokenCount);
+          } else if (
+            window.monitorUI &&
+            typeof window.monitorUI.trackCall === "function"
+          ) {
+            window.monitorUI.trackCall(type);
+          } else {
+            console.warn("Función de tracking no disponible en MonitorUI");
+          }
+        } catch (e) {
+          console.error("Error al registrar llamada API:", e);
+        }
+      };
+
+      // Registrar errores
+      this.trackApiError = (type) => {
+        try {
+          if (
+            window.monitorUI &&
+            typeof window.monitorUI.trackError === "function"
+          ) {
+            window.monitorUI.trackError(type);
+          } else {
+            console.warn(
+              "Función de tracking de errores no disponible en MonitorUI"
+            );
+          }
+        } catch (e) {
+          console.error("Error al registrar error API:", e);
+        }
+      };
+
+      console.log("Sistema de monitoreo configurado correctamente");
+    } catch (error) {
+      console.error("Error al configurar el sistema de monitoreo:", error);
+      // No propagamos el error para evitar que esto bloquee la inicialización
+    }
   }
 }
 
-// Auto-inicializar después de un breve retraso para asegurar que el DOM está listo
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    initApp();
-  }, 500);
-});
+// Función global para iniciar la aplicación
+function initApp() {
+  try {
+    console.log("Iniciando aplicación Scooby Chat...");
+
+    // Verificar si ya existe una instancia
+    if (window.app && window.app.isInitialized) {
+      console.log("La aplicación ya está inicializada");
+      return;
+    }
+
+    // Crear nueva instancia de ScoobyApp si no existe o reiniciar la existente
+    if (!window.app) {
+      console.log("Creando nueva instancia de ScoobyApp");
+      window.app = new ScoobyApp();
+    } else if (window.app.isInitializing) {
+      console.log("La aplicación ya está en proceso de inicialización");
+      return;
+    } else {
+      console.log("Reiniciando instancia existente de ScoobyApp");
+      // No recreamos la instancia, solo llamamos al método init()
+    }
+
+    // Inicializar la aplicación con manejo de errores
+    window.app.init().catch((error) => {
+      console.error("Error durante la inicialización controlada:", error);
+
+      // Asegurar que la aplicación está marcada como inicializada
+      window.app.isInitialized = true;
+      window.app.isInitializing = false;
+
+      // Intentar habilitar la funcionalidad básica
+      try {
+        const textInput = document.getElementById("text-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        if (textInput) textInput.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+
+        // Mostrar mensaje de error
+        const conversation = document.getElementById("conversation");
+        if (conversation) {
+          const errorMsg = document.createElement("div");
+          errorMsg.className = "system-message error-message";
+          errorMsg.innerHTML = `<strong>Error de inicialización:</strong> ${
+            error.message || "Error desconocido"
+          }.<br>
+            Algunas funciones pueden no estar disponibles. <button onclick="location.reload()" class="btn btn-sm btn-warning">Reintentar</button>`;
+          conversation.appendChild(errorMsg);
+        }
+      } catch (e) {
+        console.error("Error al manejar el error de inicialización:", e);
+      }
+    });
+  } catch (error) {
+    console.error("Error crítico durante la inicialización global:", error);
+
+    // Último intento de hacer algo útil
+    try {
+      alert("Error al iniciar Scooby Chat. Por favor, recarga la página.");
+    } catch (e) {
+      // No podemos hacer más
+    }
+  }
+}
+
+// Iniciar la aplicación cuando el DOM esté listo o después de un retraso
+if (document) {
+  if (document.readyState === "loading") {
+    // El DOM todavía se está cargando, esperar a que esté listo
+    document.addEventListener("DOMContentLoaded", function () {
+      setTimeout(initApp, 100);
+    });
+  } else {
+    // El DOM ya está listo, iniciar después de un breve retraso
+    setTimeout(initApp, 100);
+  }
+} else {
+  // Fallback para situaciones donde document no está definido
+  setTimeout(initApp, 500);
+}
 
 // Exportar app para uso en otros módulos
 export { ScoobyApp, initApp };
+
+// Exportar la clase ScoobyApp como default
+export default ScoobyApp;

@@ -5,7 +5,7 @@ import MonitorService from "../services/MonitorService.js";
  */
 class MonitorUI {
   constructor() {
-    // Referencias a elementos DOM
+    // Referencias a elementos DOM (con verificación de existencia)
     this.monitorBtn = document.getElementById("monitor-btn");
     this.monitorPanel = document.getElementById("monitor-panel");
     this.resetBtn = document.getElementById("reset-stats-btn");
@@ -29,14 +29,26 @@ class MonitorUI {
       chat: 0,
     };
 
-    // Inicializar eventos
-    this.initEvents();
+    // Inicializar eventos solo si existen los elementos necesarios
+    if (this.monitorBtn && this.monitorPanel) {
+      this.initEvents();
+    } else {
+      console.warn("Elementos de monitoreo no encontrados en el DOM");
+    }
   }
 
   /**
    * Inicializa los eventos del monitor
    */
   initEvents() {
+    // Verificar que existen los elementos necesarios
+    if (!this.monitorBtn || !this.monitorPanel) {
+      console.warn(
+        "No se pudieron inicializar eventos de monitoreo: elementos no disponibles"
+      );
+      return;
+    }
+
     // Evento de presionar el botón
     this.monitorBtn.addEventListener("pointerdown", () => {
       this.showMonitorPanel();
@@ -59,76 +71,70 @@ class MonitorUI {
     });
 
     // Evento para reiniciar estadísticas
-    this.resetBtn.addEventListener("click", (e) => {
-      e.stopPropagation(); // Evitar cierre del panel
+    if (this.resetBtn) {
+      this.resetBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Evitar cierre del panel
 
-      if (
-        confirm(
-          "¿Estás seguro de que quieres reiniciar todas las estadísticas?"
-        )
-      ) {
-        this.monitorService.resetCounters();
-        this.errors = { stt: 0, tts: 0, chat: 0 }; // Reiniciar errores también
-        this.updateStats();
-      }
-    });
+        if (
+          confirm(
+            "¿Estás seguro de que quieres reiniciar todas las estadísticas?"
+          )
+        ) {
+          this.monitorService.resetCounters();
+          this.errors = { stt: 0, tts: 0, chat: 0 }; // Reiniciar errores también
+          this.updateStats();
+        }
+      });
+    }
 
     // Inicializar con valores actuales
     this.updateStats();
   }
 
   /**
-   * Muestra el panel de monitoreo
-   */
-  showMonitorPanel() {
-    // Actualizar estadísticas antes de mostrar
-    this.updateStats();
-
-    // Mostrar el panel
-    this.monitorPanel.style.display = "block";
-    this.monitorPanel.style.opacity = "1";
-  }
-
-  /**
-   * Oculta el panel de monitoreo
-   */
-  hideMonitorPanel() {
-    this.monitorPanel.style.opacity = "0";
-
-    // Retraso para la animación
-    setTimeout(() => {
-      if (this.monitorPanel.style.opacity === "0") {
-        this.monitorPanel.style.display = "none";
-      }
-    }, 300);
-  }
-
-  /**
-   * Actualiza las estadísticas en el panel
+   * Actualiza las estadísticas en la interfaz
    */
   updateStats() {
+    // Obtener valores actuales
     const stats = this.monitorService.getUsageSummary();
 
-    // Actualizar contadores
-    this.totalCallsElement.textContent = stats.calls.total.toLocaleString();
-    this.chatCallsElement.textContent = stats.calls.chat.toLocaleString();
-    this.ttsCallsElement.textContent = stats.calls.tts.toLocaleString();
-    this.sttCallsElement.textContent = stats.calls.stt.toLocaleString();
-
-    // Formatear tokens con separadores de miles
-    this.tokenEstimateElement.textContent = stats.tokens.total.toLocaleString();
+    // Actualizar elementos de interfaz (solo si existen)
+    if (this.totalCallsElement)
+      this.totalCallsElement.textContent = stats.calls.total.toLocaleString();
+    if (this.chatCallsElement)
+      this.chatCallsElement.textContent = `${stats.calls.chat.toLocaleString()} (${
+        this.errors.chat
+      } errores)`;
+    if (this.ttsCallsElement)
+      this.ttsCallsElement.textContent = `${stats.calls.tts.toLocaleString()} (${
+        this.errors.tts
+      } errores)`;
+    if (this.sttCallsElement)
+      this.sttCallsElement.textContent = `${stats.calls.stt.toLocaleString()} (${
+        this.errors.stt
+      } errores)`;
+    if (this.tokenEstimateElement)
+      this.tokenEstimateElement.textContent =
+        stats.tokens.total.toLocaleString();
 
     // Actualizar barras de progreso
-    const tokenPercent = parseFloat(stats.tokens.percent);
-    this.tokenProgressElement.style.width = `${tokenPercent}%`;
+    if (this.totalProgressElement) {
+      const totalPercentage = Math.min((stats.calls.total / 1000) * 100, 100);
+      this.totalProgressElement.style.width = `${totalPercentage}%`;
+    }
 
-    // Cambiar color según el uso
-    if (tokenPercent > 80) {
-      this.tokenProgressElement.className = "progress-bar danger";
-    } else if (tokenPercent > 50) {
-      this.tokenProgressElement.className = "progress-bar warning";
-    } else {
-      this.tokenProgressElement.className = "progress-bar";
+    if (this.tokenProgressElement) {
+      const tokenPercentage = Math.min(parseFloat(stats.tokens.percent), 100);
+      this.tokenProgressElement.style.width = `${tokenPercentage}%`;
+
+      // Cambiar color según el uso
+      if (tokenPercentage > 80) {
+        this.tokenProgressElement.className = "progress-bar danger";
+      } else if (tokenPercentage > 50) {
+        this.tokenProgressElement.className = "progress-bar warning";
+      } else {
+        this.tokenProgressElement.className = "progress-bar";
+      }
     }
 
     // Comprobar si hay API key configurada
@@ -176,21 +182,71 @@ class MonitorUI {
   }
 
   /**
-   * Registra una llamada a la API
-   * @param {string} type - Tipo de llamada ('chat', 'tts', o 'stt')
+   * Muestra el panel de monitoreo
    */
-  trackCall(type) {
-    this.monitorService.trackCall(type);
+  showMonitorPanel() {
+    try {
+      if (this.monitorPanel) {
+        // Actualizar estadísticas antes de mostrar
+        this.updateStats();
+        // Usar la clase 'active' en lugar de modificar el style directamente
+        this.monitorPanel.classList.add("active");
+      } else {
+        console.warn("No se encontró el elemento panel de monitoreo");
+      }
+    } catch (error) {
+      console.error("Error al mostrar panel de monitoreo:", error);
+    }
   }
 
   /**
-   * Registra un error en las llamadas a la API
-   * @param {string} type - Tipo de error ('chat', 'tts', o 'stt')
+   * Oculta el panel de monitoreo
+   */
+  hideMonitorPanel() {
+    try {
+      if (this.monitorPanel) {
+        // Usar la clase 'active' en lugar de modificar el style directamente
+        this.monitorPanel.classList.remove("active");
+      } else {
+        console.warn("No se encontró el elemento panel de monitoreo");
+      }
+    } catch (error) {
+      console.error("Error al ocultar panel de monitoreo:", error);
+    }
+  }
+
+  /**
+   * Registra una llamada API y actualiza estadísticas
+   * @param {string} type - Tipo de llamada (chat, tts, stt)
+   * @param {number} tokenCount - Cantidad estimada de tokens (solo para chat)
+   */
+  trackApiCall(type, tokenCount = 0) {
+    this.trackCall(type);
+  }
+
+  /**
+   * Registra un error en una llamada API
+   * @param {string} type - Tipo de error (chat, tts, stt)
    */
   trackError(type) {
-    if (this.errors[type] !== undefined) {
-      this.errors[type]++;
-      console.log(`Error en ${type} registrado. Total: ${this.errors[type]}`);
+    if (!this.errors || !this.errors[type]) {
+      console.warn(`Tipo de error no válido: ${type}`);
+      return;
+    }
+
+    this.errors[type]++;
+    this.updateStats();
+  }
+
+  // Añadir método trackCall que faltaba
+  trackCall(type) {
+    try {
+      if (this.monitorService) {
+        this.monitorService.trackCall(type);
+        this.updateStats();
+      }
+    } catch (error) {
+      console.warn("Error al registrar llamada:", error);
     }
   }
 }

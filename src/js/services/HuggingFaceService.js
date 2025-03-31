@@ -393,6 +393,41 @@ Usuario: ${userMessage}
 
     return cleanText;
   }
+
+  /**
+   * Establece la clave API para el servicio
+   * @param {string} apiKey - La nueva clave API para autenticación
+   */
+  setApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+      console.error("Error: La clave API proporcionada no es válida");
+      return false;
+    }
+
+    // Guardar la nueva clave API y actualizar el encabezado
+    this.apiKey = apiKey.trim();
+    this.headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+
+    console.log("Clave API establecida correctamente");
+
+    // Verificar la conexión con la nueva clave
+    return this.checkConnection()
+      .then(() => {
+        // Guardar en localStorage para futuros usos
+        localStorage.setItem("HUGGINGFACE_API_KEY", this.apiKey);
+        return true;
+      })
+      .catch((error) => {
+        console.error(
+          "Error al verificar la conexión con la nueva clave API:",
+          error
+        );
+        return false;
+      });
+  }
 }
 
 export default HuggingFaceService;
