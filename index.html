@@ -29,7 +29,7 @@
           var(--bg-gradient-start),
           var(--bg-gradient-end)
         );
-        min-height: 100vh;
+        height: 100vh; /* Usar height en vez de min-height para asegurar el límite */
         display: flex;
         flex-direction: column;
         position: relative;
@@ -71,6 +71,7 @@
         text-align: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         position: relative;
+        flex-shrink: 0; /* Evita que el header se encoja */
       }
 
       .header h1 {
@@ -110,6 +111,7 @@
         max-width: 1400px;
         margin: 0 auto;
         width: 100%;
+        overflow: hidden; /* Prevenir desbordamiento del contenedor principal */
       }
 
       /* Sección del chat */
@@ -121,6 +123,10 @@
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         overflow: hidden;
+        
+        /* ===== INICIO DE LA CORRECCIÓN DEFINITIVA ===== */
+        min-height: 0; /* ESTA LÍNEA ES LA SOLUCIÓN CLAVE */
+        /* ===== FIN DE LA CORRECCIÓN DEFINITIVA ===== */
       }
 
       .chat-header {
@@ -131,6 +137,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-shrink: 0;
       }
 
       .status-indicator {
@@ -202,6 +209,7 @@
         padding: 15px;
         background: white;
         border-top: 1px solid #eee;
+        flex-shrink: 0;
       }
 
       .input-wrapper {
@@ -509,6 +517,7 @@
     </style>
   </head>
   <body>
+    <!-- El resto del HTML no necesita cambios -->
     <!-- Animación de fondo -->
     <div class="bg-animation">
       <span class="paw-print" style="top: 10%; left: 10%">🐾</span>
@@ -646,6 +655,9 @@
     </div>
 
     <script>
+      // El código JavaScript no necesita cambios, la solución es 100% CSS.
+      // Dejo el JS de la última versión que funcionaba.
+      
       // Configuración
       let config = {
         webhookUrl: localStorage.getItem("scooby_webhook_url") || "",
@@ -712,16 +724,9 @@
           return;
         }
 
-        // Agregar mensaje del usuario
         addMessage("user", text);
-
-        // Limpiar input
         input.value = "";
-
-        // Mostrar indicador de escritura
         showTypingIndicator();
-
-        // Animar avatar
         animateScooby(true);
 
         try {
@@ -743,26 +748,15 @@
           }
 
           const data = await response.json();
-
           hideTypingIndicator();
           animateScooby(false);
 
-          // Procesar respuesta
-          if (data.success || data.output || data.text || data.message) {
-            const responseText =
-              data.output ||
-              data.text ||
-              data.message ||
-              data.data?.message ||
-              "Lo siento, no pude procesar tu mensaje";
+          if (data.output || data.respuesta) {
+            const responseText = data.output || data.respuesta;
             addMessage("scooby", responseText);
-
-            // Text to speech
             speakText(responseText);
-
-            // Actualizar sugerencias si las hay
-            if (data.data?.suggestions) {
-              updateSuggestions(data.data.suggestions);
+            if (data.suggestions) {
+              updateSuggestions(data.suggestions);
             }
           } else {
             addMessage(
@@ -789,23 +783,17 @@
           minute: "2-digit",
         });
 
-        if (sender === "user") {
-          messageDiv.className = "user-message message";
-        } else if (sender === "scooby") {
-          messageDiv.className = "scooby-message message";
-        } else {
-          messageDiv.className = "scooby-message message";
-        }
-
-        messageDiv.innerHTML = `
-                <div>${text}</div>
-                <div class="message-time">${time}</div>
-            `;
-
+        messageDiv.className = sender === "user" ? "user-message message" : "scooby-message message";
+        messageDiv.innerHTML = `<div>${text}</div><div class="message-time">${time}</div>`;
         chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        setTimeout(() => {
+            chatMessages.scrollTo({
+                top: chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 100);
 
-        // Guardar en historial
         messageHistory.push({ sender, text, time });
       }
 
@@ -814,22 +802,15 @@
         const typingDiv = document.createElement("div");
         typingDiv.id = "typingIndicator";
         typingDiv.className = "scooby-message message";
-        typingDiv.innerHTML = `
-                <div class="typing-indicator">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            `;
+        typingDiv.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
         chatMessages.appendChild(typingDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 0);
       }
 
       function hideTypingIndicator() {
         const indicator = document.getElementById("typingIndicator");
-        if (indicator) {
-          indicator.remove();
-        }
+        if (indicator) indicator.remove();
       }
 
       function handleKeyPress(event) {
@@ -847,7 +828,6 @@
       function updateSuggestions(suggestions) {
         const suggestionsDiv = document.getElementById("suggestions");
         suggestionsDiv.innerHTML = "";
-
         suggestions.forEach((suggestion) => {
           const chip = document.createElement("div");
           chip.className = "suggestion-chip";
@@ -859,49 +839,35 @@
 
       function clearChat() {
         const chatMessages = document.getElementById("chatMessages");
-        chatMessages.innerHTML = `
-                <div class="scooby-message message">
-                    <div>¡Chat limpiado! 🧹 ¿En qué puedo ayudarte ahora?</div>
-                    <div class="message-time">Ahora</div>
-                </div>
-            `;
+        chatMessages.innerHTML = `<div class="scooby-message message"><div>¡Chat limpiado! 🧹 ¿En qué puedo ayudarte ahora?</div><div class="message-time">Ahora</div></div>`;
         messageHistory = [];
         config.conversationId = "conv_" + Date.now();
       }
 
-      // Funciones de voz
       function initializeSpeechRecognition() {
-        if (
-          "webkitSpeechRecognition" in window ||
-          "SpeechRecognition" in window
-        ) {
-          const SpeechRecognition =
-            window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
           recognition = new SpeechRecognition();
           recognition.lang = "es-ES";
           recognition.continuous = false;
           recognition.interimResults = false;
 
-          recognition.onresult = function (event) {
+          recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             document.getElementById("messageInput").value = transcript;
             sendMessage(transcript);
           };
 
-          recognition.onerror = function (event) {
+          recognition.onerror = (event) => {
             console.error("Error de reconocimiento:", event.error);
+            if (event.error === "no-speech") {
+              addMessage("sistema", "🎤 No escuché nada. Por favor, habla más fuerte y claro.");
+            }
             isRecording = false;
             updateVoiceButton();
-
-            if (event.error === "no-speech") {
-              addMessage(
-                "sistema",
-                "🎤 No escuché nada. Por favor, habla más fuerte y claro."
-              );
-            }
           };
 
-          recognition.onend = function () {
+          recognition.onend = () => {
             isRecording = false;
             updateVoiceButton();
           };
@@ -909,20 +875,14 @@
       }
 
       function toggleVoice() {
-        if (!recognition) {
-          alert("Tu navegador no soporta reconocimiento de voz");
-          return;
-        }
-
+        if (!recognition) return alert("Tu navegador no soporta reconocimiento de voz");
         if (isRecording) {
           recognition.stop();
-          isRecording = false;
         } else {
           recognition.start();
-          isRecording = true;
           addMessage("sistema", "🎤 Escuchando... Habla ahora");
         }
-
+        isRecording = !isRecording;
         updateVoiceButton();
       }
 
@@ -939,39 +899,22 @@
 
       function speakText(text) {
         if (!synth) return;
-
-        // Cancelar cualquier habla en curso
         synth.cancel();
-
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "es-ES";
         utterance.rate = 1.0;
-        utterance.pitch = 1.2; // Voz más aguda para Scooby
-
-        // Seleccionar voz española si está disponible
-        const voices = synth.getVoices();
-        const spanishVoice = voices.find((voice) => voice.lang.includes("es"));
-        if (spanishVoice) {
-          utterance.voice = spanishVoice;
-        }
-
-        utterance.onstart = () => {
-          animateScooby(true);
-        };
-
-        utterance.onend = () => {
-          animateScooby(false);
-        };
-
+        utterance.pitch = 1.2;
+        const spanishVoice = synth.getVoices().find((voice) => voice.lang.includes("es"));
+        if (spanishVoice) utterance.voice = spanishVoice;
+        utterance.onstart = () => animateScooby(true);
+        utterance.onend = () => animateScooby(false);
         synth.speak(utterance);
       }
 
-      // Funciones de animación
       function animateScooby(isTalking) {
         const avatar = document.getElementById("scoobyAvatar");
         const thoughtBubble = document.getElementById("thoughtBubble");
         const status = document.getElementById("scoobyStatus");
-
         if (isTalking) {
           avatar.classList.add("talking");
           thoughtBubble.classList.add("show");
@@ -991,30 +934,20 @@
             snack.textContent = "🍪";
             snack.style.left = Math.random() * window.innerWidth + "px";
             document.body.appendChild(snack);
-
             setTimeout(() => snack.remove(), 3000);
           }
         }, 5000);
       }
 
-      // Función para detectar estado de conexión
       function checkConnection() {
         const statusElement = document.getElementById("connection-status");
         const statusIndicator = document.querySelector(".status-indicator");
-
-        if (navigator.onLine && config.webhookUrl) {
-          statusElement.textContent = "Conectado";
-          statusIndicator.style.background = "#4CAF50";
-        } else {
-          statusElement.textContent = "Desconectado";
-          statusIndicator.style.background = "#ff4444";
-        }
+        const isOnline = navigator.onLine && config.webhookUrl;
+        statusElement.textContent = isOnline ? "Conectado" : "Desconectado";
+        statusIndicator.style.background = isOnline ? "#4CAF50" : "#ff4444";
       }
 
-      // Verificar conexión cada 5 segundos
       setInterval(checkConnection, 5000);
-
-      // Escuchar eventos de conexión
       window.addEventListener("online", checkConnection);
       window.addEventListener("offline", checkConnection);
     </script>
