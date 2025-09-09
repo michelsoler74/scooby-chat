@@ -896,26 +896,32 @@
       let isBotResponding = false; // controla si el bot está respondiendo
       let isCancelling = false; // controla si se está cancelando la interacción
 
-      // Telemetría ligera: envía eventos al webhook con user_id
+      // Telemetría ligera: envía eventos a un webhook separado o los omite si no hay URL
       function trackEvent(event, extra = {}) {
         try {
-          if (!config.webhookUrl) return;
-          const payload = {
-            type: "telemetry",
-            event,
-            user_id: config.userId,
-            userId: config.userId, // compatibilidad
-            conversationId: config.conversationId,
-            age: config.userAge,
-            timestamp: Date.now(),
-            ...extra,
-          };
-          // Fire-and-forget
-          fetch(config.webhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).catch(() => {});
+          // Solo enviar telemetría si hay una URL específica para telemetría
+          // Por ahora, solo loguear localmente para no interferir con el webhook principal
+          console.log("Telemetry event:", event, extra);
+          
+          // Si quieres enviar telemetría a un webhook separado, descomenta esto:
+          // const telemetryUrl = config.telemetryUrl || config.webhookUrl + "/telemetry";
+          // if (telemetryUrl) {
+          //   const payload = {
+          //     type: "telemetry",
+          //     event,
+          //     user_id: config.userId,
+          //     userId: config.userId,
+          //     conversationId: config.conversationId,
+          //     age: config.userAge,
+          //     timestamp: Date.now(),
+          //     ...extra,
+          //   };
+          //   fetch(telemetryUrl, {
+          //     method: "POST",
+          //     headers: { "Content-Type": "application/json" },
+          //     body: JSON.stringify(payload),
+          //   }).catch(() => {});
+          // }
         } catch (_) {}
       }
 
