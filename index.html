@@ -123,7 +123,7 @@
         border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         overflow: hidden;
-        
+
         /* ===== INICIO DE LA CORRECCIÓN DEFINITIVA ===== */
         min-height: 0; /* ESTA LÍNEA ES LA SOLUCIÓN CLAVE */
         /* ===== FIN DE LA CORRECCIÓN DEFINITIVA ===== */
@@ -479,6 +479,8 @@
       @media (max-width: 768px) {
         .main-container {
           flex-direction: column;
+          padding: 10px;
+          gap: 15px;
         }
 
         .avatar-section {
@@ -486,13 +488,89 @@
           order: -1;
         }
 
+        .avatar-container {
+          padding: 15px;
+        }
+
         .scooby-avatar {
           width: 150px;
           height: 150px;
         }
 
+        .scooby-avatar svg {
+          width: 150px !important;
+          height: 150px !important;
+        }
+
         .message {
           max-width: 85%;
+        }
+
+        .chat-section {
+          min-height: 60vh;
+        }
+
+        .input-wrapper {
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .send-btn {
+          width: 100%;
+        }
+
+        .control-buttons {
+          flex-direction: column;
+        }
+
+        .control-btn {
+          min-width: auto;
+        }
+      }
+
+      /* Mobile pequeño */
+      @media (max-width: 480px) {
+        .header h1 {
+          font-size: 1.5em;
+        }
+
+        .main-container {
+          padding: 5px;
+        }
+
+        .avatar-container {
+          padding: 10px;
+        }
+
+        .scooby-avatar {
+          width: 120px;
+          height: 120px;
+        }
+
+        .scooby-avatar svg {
+          width: 120px !important;
+          height: 120px !important;
+        }
+
+        .chat-messages {
+          padding: 15px;
+        }
+
+        .input-section {
+          padding: 10px;
+        }
+
+        .message {
+          max-width: 90%;
+          padding: 10px 12px;
+        }
+
+        .suggestions {
+          flex-direction: column;
+        }
+
+        .suggestion-chip {
+          text-align: center;
         }
       }
 
@@ -549,9 +627,10 @@
         <div class="chat-messages" id="chatMessages">
           <div class="scooby-message message">
             <div>
-              ¡Scooby-dooby-doo! 🐾 ¡Hola amigo! Soy Scooby, tu amigo virtual.
-              ¿En qué puedo ayudarte hoy? Podemos jugar, aprender cosas nuevas o
-              simplemente charlar. ¿Qué te gustaría hacer?
+              ¡Hola! Soy Scooby, tu compañero de aprendizaje y crecimiento. 🎓
+              Para poder ayudarte mejor, ¿me podrías decir en qué etapa
+              educativa estás? ¿Primaria, secundaria o universidad? ¡Estoy aquí
+              para acompañarte en tu camino de aprendizaje!
             </div>
             <div class="message-time">Ahora</div>
           </div>
@@ -585,21 +664,21 @@
           <div class="suggestions" id="suggestions">
             <div
               class="suggestion-chip"
-              onclick="sendSuggestion('¿Puedes contarme un cuento?')"
+              onclick="sendSuggestion('Estoy en primaria')"
             >
-              📖 Cuéntame un cuento
+              🎒 Primaria
             </div>
             <div
               class="suggestion-chip"
-              onclick="sendSuggestion('¿Jugamos a las adivinanzas?')"
+              onclick="sendSuggestion('Estoy en secundaria')"
             >
-              🎮 Jugar
+              🎓 Secundaria
             </div>
             <div
               class="suggestion-chip"
-              onclick="sendSuggestion('Tengo una pregunta de la escuela')"
+              onclick="sendSuggestion('Estoy en universidad')"
             >
-              📚 Ayuda con tarea
+              🎓 Universidad
             </div>
           </div>
         </div>
@@ -608,12 +687,149 @@
       <!-- Avatar Section -->
       <div class="avatar-section">
         <div class="avatar-container">
-          <img
-            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='%238B4513'/%3E%3Ccircle cx='100' cy='100' r='80' fill='%23A0522D'/%3E%3Cellipse cx='75' cy='80' rx='15' ry='20' fill='black'/%3E%3Cellipse cx='125' cy='80' rx='15' ry='20' fill='black'/%3E%3Cellipse cx='75' cy='75' rx='5' ry='7' fill='white'/%3E%3Cellipse cx='125' cy='75' rx='5' ry='7' fill='white'/%3E%3Cellipse cx='100' cy='110' rx='25' ry='20' fill='black'/%3E%3Cpath d='M80 130 Q100 145 120 130' stroke='black' stroke-width='3' fill='none'/%3E%3Cellipse cx='40' cy='90' rx='25' ry='35' fill='%238B4513'/%3E%3Cellipse cx='160' cy='90' rx='25' ry='35' fill='%238B4513'/%3E%3C/svg%3E"
-            alt="Scooby"
-            class="scooby-avatar"
-            id="scoobyAvatar"
-          />
+          <!-- Avatar SVG:
+               - Contenedor .scooby-avatar: mantiene tamaño y animación de escala.
+               - SVG interno: dibuja cabeza, ojos y boca.
+               - IDs clave para animación:
+                 * mouthPath: ruta de la boca que cambiamos cuando habla.
+                 * leftEyeOuter / rightEyeOuter: círculos exteriores para aplicar glow al hablar. -->
+          <div class="scooby-avatar" id="scoobyAvatar">
+            <svg
+              viewBox="0 0 400 400"
+              xmlns="http://www.w3.org/2000/svg"
+              style="width: 250px; height: 250px; display: block"
+            >
+              <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <linearGradient
+                  id="eyeGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stop-color="#00d2ff" />
+                  <stop offset="100%" stop-color="#3a7bd5" />
+                </linearGradient>
+              </defs>
+
+              <ellipse
+                cx="200"
+                cy="380"
+                rx="120"
+                ry="20"
+                fill="rgba(0,0,0,0.3)"
+              />
+
+              <g transform="translate(0, -20)">
+                <path
+                  d="M 120,100 C 50,100 20,180 20,250 C 20,320 80,350 120,350 L 280,350 C 320,350 380,320 380,250 C 380,180 350,100 280,100 Z"
+                  fill="#E5E7EB"
+                />
+                <path
+                  d="M 125,100 C 60,100 30,170 30,240 C 30,310 85,340 125,340 L 275,340 C 315,340 370,310 370,240 C 370,170 340,100 275,100 Z"
+                  fill="#F3F4F6"
+                  stroke="#D1D5DB"
+                  stroke-width="2"
+                />
+
+                <g>
+                  <path
+                    d="M 60,120 C 10,140 0,220 30,260 C 40,280 70,260 60,220 C 50,180 80,140 60,120 Z"
+                    fill="#E5E7EB"
+                  />
+                  <path
+                    d="M 55,125 C 20,145 10,215 35,250 C 45,265 65,250 55,220 C 48,190 75,150 55,125 Z"
+                    fill="#1E40AF"
+                    opacity="0.7"
+                  />
+                </g>
+                <g transform="translate(340, 0) scale(-1, 1) translate(-60, 0)">
+                  <path
+                    d="M 60,120 C 10,140 0,220 30,260 C 40,280 70,260 60,220 C 50,180 80,140 60,120 Z"
+                    fill="#E5E7EB"
+                  />
+                  <path
+                    d="M 55,125 C 20,145 10,215 35,250 C 45,265 65,250 55,220 C 48,190 75,150 55,125 Z"
+                    fill="#1E40AF"
+                    opacity="0.7"
+                  />
+                </g>
+
+                <g>
+                  <circle
+                    id="leftEyeOuter"
+                    cx="130"
+                    cy="200"
+                    r="45"
+                    fill="url(#eyeGradient)"
+                  />
+                  <circle cx="130" cy="200" r="40" fill="#020617" />
+                  <circle cx="140" cy="190" r="10" fill="white" opacity="0.9" />
+                </g>
+                <g>
+                  <circle
+                    id="rightEyeOuter"
+                    cx="270"
+                    cy="200"
+                    r="45"
+                    fill="url(#eyeGradient)"
+                  />
+                  <circle cx="270" cy="200" r="40" fill="#020617" />
+                  <circle cx="280" cy="190" r="10" fill="white" opacity="0.9" />
+                </g>
+
+                <path
+                  d="M 200,240 C 180,240 180,260 200,260 C 220,260 220,240 200,240 Z"
+                  fill="#1F2937"
+                />
+
+                <g>
+                  <path
+                    d="M 170 280 Q 200 290 230 280"
+                    stroke="#9CA3AF"
+                    stroke-width="2"
+                    fill="none"
+                  />
+                  <!-- Boca en reposo (línea). En JS cambiamos este atributo "d"
+                       a una curva cuando el bot está hablando. -->
+                  <path
+                    id="mouthPath"
+                    d="M 190 295 L 210 295"
+                    stroke="#4B5563"
+                    stroke-width="3"
+                    fill="none"
+                    stroke-linecap="round"
+                  />
+                </g>
+
+                <path
+                  d="M 180,105 L 220,105"
+                  stroke="#9CA3AF"
+                  stroke-width="2"
+                  fill="none"
+                />
+                <path
+                  d="M 195,95 L 195,105"
+                  stroke="#9CA3AF"
+                  stroke-width="2"
+                  fill="none"
+                />
+                <path
+                  d="M 205,95 L 205,105"
+                  stroke="#9CA3AF"
+                  stroke-width="2"
+                  fill="none"
+                />
+              </g>
+            </svg>
+          </div>
           <div class="thought-bubble" id="thoughtBubble">
             ¡Estoy pensando! 🤔
           </div>
@@ -657,7 +873,7 @@
     <script>
       // El código JavaScript no necesita cambios, la solución es 100% CSS.
       // Dejo el JS de la última versión que funcionaba.
-      
+
       // Configuración
       let config = {
         webhookUrl: localStorage.getItem("scooby_webhook_url") || "",
@@ -671,6 +887,93 @@
       let recognition = null;
       let synth = window.speechSynthesis;
       let messageHistory = [];
+      // Control de animación de labios durante el habla
+      let mouthAnimationTimer = null; // id del intervalo
+      let mouthAnimationPhase = 0; // fase cíclica de la boca
+      // Control de timeout para reconocimiento de voz
+      let speechTimeout = null; // timeout para pausas largas
+      let speechStartTime = null; // momento de inicio de grabación
+      let isBotResponding = false; // controla si el bot está respondiendo
+      let isCancelling = false; // controla si se está cancelando la interacción
+
+      // Cambia la forma de la boca según una fase
+      function setMouthShape(phase) {
+        const mouth = document.getElementById("mouthPath");
+        if (!mouth) return;
+        switch (phase % 3) {
+          case 0: // reposo
+            mouth.setAttribute("d", "M 190 295 L 210 295");
+            break;
+          case 1: // semi-abierta (curva ligera)
+            mouth.setAttribute("d", "M 185 295 Q 200 305 215 295");
+            break;
+          case 2: // abierta (curva más pronunciada)
+            mouth.setAttribute("d", "M 180 295 Q 200 312 220 295");
+            break;
+        }
+      }
+
+      // Inicia la animación de labios, alternando formas rápidamente
+      function startMouthAnimation() {
+        if (mouthAnimationTimer) return; // ya corriendo
+        mouthAnimationPhase = 0;
+        setMouthShape(mouthAnimationPhase);
+        mouthAnimationTimer = setInterval(() => {
+          mouthAnimationPhase = (mouthAnimationPhase + 1) % 3;
+          setMouthShape(mouthAnimationPhase);
+        }, 140); // velocidad del "parloteo"
+      }
+
+      // Detiene la animación de labios y vuelve a reposo
+      function stopMouthAnimation() {
+        if (mouthAnimationTimer) {
+          clearInterval(mouthAnimationTimer);
+          mouthAnimationTimer = null;
+        }
+        setMouthShape(0);
+      }
+
+      // Función para cancelar completamente toda la interacción
+      function cancelAllInteractions() {
+        isCancelling = true;
+
+        // Parar reconocimiento de voz
+        if (recognition && isRecording) {
+          recognition.stop();
+        }
+
+        // Limpiar timeouts
+        if (speechTimeout) {
+          clearTimeout(speechTimeout);
+          speechTimeout = null;
+        }
+
+        // Parar síntesis de voz
+        if (synth) {
+          synth.cancel();
+        }
+
+        // Parar animaciones
+        stopMouthAnimation();
+        animateScooby(false);
+
+        // Resetear estados
+        isRecording = false;
+        isBotResponding = false;
+        isCancelling = false;
+
+        // Actualizar UI
+        updateVoiceButton();
+        hideTypingIndicator();
+
+        // Limpiar input
+        document.getElementById("messageInput").value = "";
+
+        addMessage(
+          "sistema",
+          "🛑 Interacción cancelada. Listo para una nueva conversación."
+        );
+      }
 
       // Inicialización
       window.onload = function () {
@@ -713,6 +1016,9 @@
 
       // Funciones de chat
       async function sendMessage(message = null) {
+        // Si se está cancelando, no procesar mensajes
+        if (isCancelling) return;
+
         const input = document.getElementById("messageInput");
         const text = message || input.value.trim();
 
@@ -728,6 +1034,7 @@
         input.value = "";
         showTypingIndicator();
         animateScooby(true);
+        isBotResponding = true; // Marcar que el bot está respondiendo
 
         try {
           const response = await fetch(config.webhookUrl, {
@@ -748,12 +1055,17 @@
           }
 
           const data = await response.json();
+
+          // Verificar si se canceló durante la espera
+          if (isCancelling) return;
+
           hideTypingIndicator();
           animateScooby(false);
 
           if (data.output || data.respuesta) {
             const responseText = data.output || data.respuesta;
             addMessage("scooby", responseText);
+            // La animación de labios se coordina dentro de speakText (onstart/onend)
             speakText(responseText);
             if (data.suggestions) {
               updateSuggestions(data.suggestions);
@@ -763,11 +1075,13 @@
               "scooby",
               "¡Ruh-roh! Parece que algo salió mal. ¿Puedes intentar de nuevo?"
             );
+            isBotResponding = false; // Resetear estado si no hay respuesta
           }
         } catch (error) {
           console.error("Error:", error);
           hideTypingIndicator();
           animateScooby(false);
+          isBotResponding = false; // Resetear estado en caso de error
           addMessage(
             "scooby",
             "¡Ups! No pude conectarme al servidor. ¿Está configurada correctamente la URL del webhook?"
@@ -783,15 +1097,16 @@
           minute: "2-digit",
         });
 
-        messageDiv.className = sender === "user" ? "user-message message" : "scooby-message message";
+        messageDiv.className =
+          sender === "user" ? "user-message message" : "scooby-message message";
         messageDiv.innerHTML = `<div>${text}</div><div class="message-time">${time}</div>`;
         chatMessages.appendChild(messageDiv);
-        
+
         setTimeout(() => {
-            chatMessages.scrollTo({
-                top: chatMessages.scrollHeight,
-                behavior: 'smooth'
-            });
+          chatMessages.scrollTo({
+            top: chatMessages.scrollHeight,
+            behavior: "smooth",
+          });
         }, 100);
 
         messageHistory.push({ sender, text, time });
@@ -804,8 +1119,10 @@
         typingDiv.className = "scooby-message message";
         typingDiv.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
         chatMessages.appendChild(typingDiv);
-        
-        setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 0);
+
+        setTimeout(() => {
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }, 0);
       }
 
       function hideTypingIndicator() {
@@ -845,29 +1162,107 @@
       }
 
       function initializeSpeechRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition =
+          window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
           recognition = new SpeechRecognition();
           recognition.lang = "es-ES";
-          recognition.continuous = false;
-          recognition.interimResults = false;
+          recognition.continuous = true; // Cambiado a true para permitir pausas
+          recognition.interimResults = true; // Cambiado a true para mostrar resultados parciales
+          recognition.maxAlternatives = 1;
+
+          recognition.onstart = () => {
+            speechStartTime = Date.now();
+            // Timeout de 8 segundos de silencio antes de parar
+            speechTimeout = setTimeout(() => {
+              if (isRecording && !isBotResponding) {
+                recognition.stop();
+                addMessage(
+                  "sistema",
+                  "🎤 Tiempo de silencio agotado. Procesando..."
+                );
+              }
+            }, 8000);
+          };
 
           recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            document.getElementById("messageInput").value = transcript;
-            sendMessage(transcript);
+            // Si se está cancelando, no procesar resultados
+            if (isCancelling) return;
+
+            // Limpiar timeout cada vez que hay resultado
+            if (speechTimeout) {
+              clearTimeout(speechTimeout);
+              speechTimeout = null;
+            }
+
+            let finalTranscript = "";
+            let interimTranscript = "";
+
+            // Procesar todos los resultados
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+
+            // Mostrar resultado final o provisional
+            if (finalTranscript && !isCancelling) {
+              document.getElementById("messageInput").value = finalTranscript;
+              sendMessage(finalTranscript);
+            } else if (interimTranscript && !isCancelling) {
+              // Mostrar texto provisional en el input
+              document.getElementById("messageInput").value = interimTranscript;
+            }
+
+            // Reiniciar timeout si hay actividad
+            if (isRecording && !isCancelling) {
+              speechTimeout = setTimeout(() => {
+                if (isRecording && !isBotResponding && !isCancelling) {
+                  recognition.stop();
+                  addMessage(
+                    "sistema",
+                    "🎤 Tiempo de silencio agotado. Procesando..."
+                  );
+                }
+              }, 6000); // 6 segundos después del último resultado
+            }
           };
 
           recognition.onerror = (event) => {
             console.error("Error de reconocimiento:", event.error);
+            if (speechTimeout) {
+              clearTimeout(speechTimeout);
+              speechTimeout = null;
+            }
+
             if (event.error === "no-speech") {
-              addMessage("sistema", "🎤 No escuché nada. Por favor, habla más fuerte y claro.");
+              addMessage(
+                "sistema",
+                "🎤 No escuché nada. Por favor, habla más fuerte y claro."
+              );
+            } else if (event.error === "audio-capture") {
+              addMessage(
+                "sistema",
+                "🎤 No se puede acceder al micrófono. Verifica los permisos."
+              );
+            } else if (event.error === "not-allowed") {
+              addMessage(
+                "sistema",
+                "🎤 Permisos de micrófono denegados. Por favor, permite el acceso."
+              );
             }
             isRecording = false;
             updateVoiceButton();
           };
 
           recognition.onend = () => {
+            if (speechTimeout) {
+              clearTimeout(speechTimeout);
+              speechTimeout = null;
+            }
             isRecording = false;
             updateVoiceButton();
           };
@@ -875,14 +1270,29 @@
       }
 
       function toggleVoice() {
-        if (!recognition) return alert("Tu navegador no soporta reconocimiento de voz");
+        if (!recognition)
+          return alert("Tu navegador no soporta reconocimiento de voz");
+
+        // Si está grabando, cancelar completamente
         if (isRecording) {
-          recognition.stop();
-        } else {
-          recognition.start();
-          addMessage("sistema", "🎤 Escuchando... Habla ahora");
+          cancelAllInteractions();
+          return;
         }
-        isRecording = !isRecording;
+
+        // Si el bot está respondiendo, cancelar todo
+        if (isBotResponding) {
+          cancelAllInteractions();
+          return;
+        }
+
+        // Iniciar nueva grabación
+        document.getElementById("messageInput").value = "";
+        recognition.start();
+        addMessage(
+          "sistema",
+          "🎤 Escuchando... Habla con naturalidad, puedes hacer pausas"
+        );
+        isRecording = true;
         updateVoiceButton();
       }
 
@@ -890,7 +1300,10 @@
         const voiceBtn = document.getElementById("voiceBtn");
         if (isRecording) {
           voiceBtn.classList.add("recording");
-          voiceBtn.innerHTML = "⏹️ Detener";
+          voiceBtn.innerHTML = "🛑 Cancelar";
+        } else if (isBotResponding) {
+          voiceBtn.classList.add("recording");
+          voiceBtn.innerHTML = "🛑 Cancelar";
         } else {
           voiceBtn.classList.remove("recording");
           voiceBtn.innerHTML = "🎤 Hablar";
@@ -898,16 +1311,29 @@
       }
 
       function speakText(text) {
-        if (!synth) return;
+        if (!synth || isCancelling) return;
         synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "es-ES";
         utterance.rate = 1.0;
         utterance.pitch = 1.2;
-        const spanishVoice = synth.getVoices().find((voice) => voice.lang.includes("es"));
+        const spanishVoice = synth
+          .getVoices()
+          .find((voice) => voice.lang.includes("es"));
         if (spanishVoice) utterance.voice = spanishVoice;
-        utterance.onstart = () => animateScooby(true);
-        utterance.onend = () => animateScooby(false);
+        utterance.onstart = () => {
+          if (!isCancelling) {
+            animateScooby(true);
+            startMouthAnimation(); // iniciar labios al empezar a hablar
+          }
+        };
+        utterance.onend = () => {
+          if (!isCancelling) {
+            stopMouthAnimation(); // detener labios al terminar
+            animateScooby(false);
+            isBotResponding = false; // Resetear estado cuando termine de hablar
+          }
+        };
         synth.speak(utterance);
       }
 
@@ -915,14 +1341,20 @@
         const avatar = document.getElementById("scoobyAvatar");
         const thoughtBubble = document.getElementById("thoughtBubble");
         const status = document.getElementById("scoobyStatus");
+        const leftEyeOuter = document.getElementById("leftEyeOuter");
+        const rightEyeOuter = document.getElementById("rightEyeOuter");
         if (isTalking) {
           avatar.classList.add("talking");
           thoughtBubble.classList.add("show");
           status.textContent = "💬 Hablando...";
+          if (leftEyeOuter) leftEyeOuter.setAttribute("filter", "url(#glow)");
+          if (rightEyeOuter) rightEyeOuter.setAttribute("filter", "url(#glow)");
         } else {
           avatar.classList.remove("talking");
           thoughtBubble.classList.remove("show");
           status.textContent = "🟢 Listo para ayudarte";
+          if (leftEyeOuter) leftEyeOuter.removeAttribute("filter");
+          if (rightEyeOuter) rightEyeOuter.removeAttribute("filter");
         }
       }
 
