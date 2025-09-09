@@ -896,6 +896,29 @@
       let isBotResponding = false; // controla si el bot está respondiendo
       let isCancelling = false; // controla si se está cancelando la interacción
 
+      // Telemetría ligera: envía eventos al webhook con user_id
+      function trackEvent(event, extra = {}) {
+        try {
+          if (!config.webhookUrl) return;
+          const payload = {
+            type: "telemetry",
+            event,
+            user_id: config.userId,
+            userId: config.userId, // compatibilidad
+            conversationId: config.conversationId,
+            age: config.userAge,
+            timestamp: Date.now(),
+            ...extra,
+          };
+          // Fire-and-forget
+          fetch(config.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).catch(() => {});
+        } catch (_) {}
+      }
+
       // Cambia la forma de la boca según una fase
       function setMouthShape(phase) {
         const mouth = document.getElementById("mouthPath");
@@ -1031,6 +1054,7 @@
         }
 
         addMessage("user", text);
+        trackEvent("message_sent", { messageLength: text.length });
         input.value = "";
         showTypingIndicator();
         animateScooby(true);
@@ -1044,6 +1068,8 @@
             },
             body: JSON.stringify({
               message: text,
+              // Enviamos ambos por compatibilidad: user_id (nuevo) y userId (legacy)
+              user_id: config.userId,
               userId: config.userId,
               age: config.userAge,
               conversationId: config.conversationId,
@@ -1055,6 +1081,9 @@
           }
 
           const data = await response.json();
+          trackEvent("response_received", {
+            hasOutput: Boolean(data.output || data.respuesta),
+          });
 
           // Verificar si se canceló durante la espera
           if (isCancelling) return;
@@ -1173,6 +1202,7 @@
 
           recognition.onstart = () => {
             speechStartTime = Date.now();
+            trackEvent("stt_start");
             // Timeout de 8 segundos de silencio antes de parar
             speechTimeout = setTimeout(() => {
               if (isRecording && !isBotResponding) {
@@ -1181,6 +1211,7 @@
                   "sistema",
                   "🎤 Tiempo de silencio agotado. Procesando..."
                 );
+                trackEvent("stt_timeout");
               }
             }, 8000);
           };
@@ -1237,6 +1268,7 @@
               clearTimeout(speechTimeout);
               speechTimeout = null;
             }
+            trackEvent("stt_error", { error: event.error });
 
             if (event.error === "no-speech") {
               addMessage(
@@ -1265,6 +1297,7 @@
             }
             isRecording = false;
             updateVoiceButton();
+            trackEvent("stt_end");
           };
         }
       }
@@ -1275,12 +1308,14 @@
 
         // Si está grabando, cancelar completamente
         if (isRecording) {
+          trackEvent("voice_cancel");
           cancelAllInteractions();
           return;
         }
 
         // Si el bot está respondiendo, cancelar todo
         if (isBotResponding) {
+          trackEvent("bot_cancel");
           cancelAllInteractions();
           return;
         }
@@ -1288,6 +1323,7 @@
         // Iniciar nueva grabación
         document.getElementById("messageInput").value = "";
         recognition.start();
+        trackEvent("voice_start");
         addMessage(
           "sistema",
           "🎤 Escuchando... Habla con naturalidad, puedes hacer pausas"
@@ -1325,6 +1361,7 @@
           if (!isCancelling) {
             animateScooby(true);
             startMouthAnimation(); // iniciar labios al empezar a hablar
+            trackEvent("tts_start");
           }
         };
         utterance.onend = () => {
@@ -1332,6 +1369,7 @@
             stopMouthAnimation(); // detener labios al terminar
             animateScooby(false);
             isBotResponding = false; // Resetear estado cuando termine de hablar
+            trackEvent("tts_end");
           }
         };
         synth.speak(utterance);
