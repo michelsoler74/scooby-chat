@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scooby - Tu Amigo Virtual</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary-color: #8b4513;
+        --secondary-color: #4caf50;
+        --bg-gradient-start: #87ceeb;
+        --bg-gradient-end: #98fb98;
+        --text-dark: #333;
+        --chat-bg: rgba(255, 255, 255, 0.95);
+        --user-msg: #e3f2fd;
+        --scooby-msg: #fff3e0;
+      }
+
+      body {
+        font-family: "Comic Sans MS", "Arial", sans-serif;
+        background: linear-gradient(
+          135deg,
+          var(--bg-gradient-start),
+          var(--bg-gradient-end)
+        );
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Animación de fondo */
+      .bg-animation {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        opacity: 0.1;
+      }
+
+      .paw-print {
+        position: absolute;
+        font-size: 30px;
+        animation: float 20s infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        50% {
+          transform: translateY(-20px) rotate(180deg);
+        }
+      }
+
+      /* Header */
+      .header {
+        background: linear-gradient(90deg, var(--primary-color), #d2691e);
+        color: white;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 2em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .config-btn {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: white;
+        color: var(--primary-color);
+        border: none;
+        padding: 10px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform 0.3s;
+        font-size: 20px;
+      }
+
+      .config-btn:hover {
+        transform: translateY(-50%) rotate(90deg);
+      }
+
+      /* Container principal */
+      .main-container {
+        flex: 1;
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* Sección del chat */
+      .chat-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--chat-bg);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .chat-header {
+        background: linear-gradient(90deg, var(--secondary-color), #66bb6a);
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-indicator {
+        width: 10px;
+        height: 10px;
+        background: #4caf50;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .message {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        animation: slideIn 0.3s ease;
+        position: relative;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .user-message {
+        align-self: flex-end;
+        background: var(--user-msg);
+        border-bottom-right-radius: 4px;
+      }
+
+      .scooby-message {
+        align-self: flex-start;
+        background: var(--scooby-msg);
+        border-bottom-left-radius: 4px;
+      }
+
+      .message-time {
+        font-size: 0.7em;
+        opacity: 0.7;
+        margin-top: 5px;
+      }
+
+      /* Input section */
+      .input-section {
+        padding: 15px;
+        background: white;
+        border-top: 1px solid #eee;
+      }
+
+      .input-wrapper {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .message-input {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 25px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      .message-input:focus {
+        outline: none;
+        border-color: var(--secondary-color);
+      }
+
+      .send-btn {
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.3s;
+        font-weight: bold;
+      }
+
+      .send-btn:hover {
+        transform: scale(1.05);
+        background: #45a049;
+      }
+
+      .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Control buttons */
+      .control-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .control-btn {
+        flex: 1;
+        min-width: 100px;
+        padding: 10px;
+        border: none;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .voice-btn {
+        background: #ff6b6b;
+        color: white;
+      }
+
+      .voice-btn.recording {
+        background: #ff4444;
+        animation: recording 1s infinite;
+      }
+
+      @keyframes recording {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+        }
+      }
+
+      .clear-btn {
+        background: #ffa726;
+        color: white;
+      }
+
+      /* Scooby Avatar Section */
+      .avatar-section {
+        width: 350px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .avatar-container {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .scooby-avatar {
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        object-fit: cover;
+        transition: transform 0.3s;
+      }
+
+      .scooby-avatar.talking {
+        animation: talk 0.5s infinite alternate;
+      }
+
+      @keyframes talk {
+        0% {
+          transform: scale(1);
+        }
+        100% {
+          transform: scale(1.05);
+        }
+      }
+
+      .thought-bubble {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: white;
+        padding: 10px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+        max-width: 150px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .thought-bubble.show {
+        opacity: 1;
+      }
+
+      /* Suggestions */
+      .suggestions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .suggestion-chip {
+        background: #e8f5e9;
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+      }
+
+      .suggestion-chip:hover {
+        background: var(--secondary-color);
+        color: white;
+        transform: translateY(-2px);
+      }
+
+      /* Config Modal */
+      .config-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .config-modal.show {
+        display: flex;
+      }
+
+      .config-content {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        max-width: 500px;
+        width: 90%;
+        animation: modalSlide 0.3s ease;
+      }
+
+      @keyframes modalSlide {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .config-title {
+        color: var(--primary-color);
+        margin-bottom: 20px;
+      }
+
+      .config-input {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+
+      .config-save {
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        width: 100%;
+        font-weight: bold;
+      }
+
+      /* Loading animation */
+      .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 10px;
+      }
+
+      .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #999;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+      }
+
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-10px);
+        }
+      }
+
+      /* Mobile responsive */
+      @media (max-width: 768px) {
+        .main-container {
+          flex-direction: column;
+        }
+
+        .avatar-section {
+          width: 100%;
+          order: -1;
+        }
+
+        .scooby-avatar {
+          width: 150px;
+          height: 150px;
+        }
+
+        .message {
+          max-width: 85%;
+        }
+      }
+
+      /* Fun elements */
+      .scooby-snack {
+        position: absolute;
+        font-size: 20px;
+        animation: fall 3s linear;
+        pointer-events: none;
+      }
+
+      @keyframes fall {
+        from {
+          transform: translateY(-100px);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100vh);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Animación de fondo -->
+    <div class="bg-animation">
+      <span class="paw-print" style="top: 10%; left: 10%">🐾</span>
+      <span class="paw-print" style="top: 60%; left: 80%">🐾</span>
+      <span class="paw-print" style="top: 30%; left: 50%">🐾</span>
+      <span class="paw-print" style="top: 80%; left: 20%">🐾</span>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+      <h1>
+        <span>🐕</span>
+        Scooby - Tu Amigo Virtual
+        <span>🦴</span>
+      </h1>
+      <button class="config-btn" onclick="toggleConfig()">⚙️</button>
+    </header>
+
+    <!-- Container Principal -->
+    <div class="main-container">
+      <!-- Chat Section -->
+      <div class="chat-section">
+        <div class="chat-header">
+          <span class="status-indicator"></span>
+          <span>Chat con Scooby</span>
+          <span id="connection-status">Conectado</span>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="scooby-message message">
+            <div>
+              ¡Scooby-dooby-doo! 🐾 ¡Hola amigo! Soy Scooby, tu amigo virtual.
+              ¿En qué puedo ayudarte hoy? Podemos jugar, aprender cosas nuevas o
+              simplemente charlar. ¿Qué te gustaría hacer?
+            </div>
+            <div class="message-time">Ahora</div>
+          </div>
+        </div>
+
+        <div class="input-section">
+          <div class="input-wrapper">
+            <input
+              type="text"
+              class="message-input"
+              id="messageInput"
+              placeholder="Escribe tu mensaje aquí..."
+              onkeypress="handleKeyPress(event)"
+            />
+            <button class="send-btn" onclick="sendMessage()">Enviar 📤</button>
+          </div>
+
+          <div class="control-buttons">
+            <button
+              class="control-btn voice-btn"
+              id="voiceBtn"
+              onclick="toggleVoice()"
+            >
+              🎤 Hablar
+            </button>
+            <button class="control-btn clear-btn" onclick="clearChat()">
+              🧹 Limpiar
+            </button>
+          </div>
+
+          <div class="suggestions" id="suggestions">
+            <div
+              class="suggestion-chip"
+              onclick="sendSuggestion('¿Puedes contarme un cuento?')"
+            >
+              📖 Cuéntame un cuento
+            </div>
+            <div
+              class="suggestion-chip"
+              onclick="sendSuggestion('¿Jugamos a las adivinanzas?')"
+            >
+              🎮 Jugar
+            </div>
+            <div
+              class="suggestion-chip"
+              onclick="sendSuggestion('Tengo una pregunta de la escuela')"
+            >
+              📚 Ayuda con tarea
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar Section -->
+      <div class="avatar-section">
+        <div class="avatar-container">
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='%238B4513'/%3E%3Ccircle cx='100' cy='100' r='80' fill='%23A0522D'/%3E%3Cellipse cx='75' cy='80' rx='15' ry='20' fill='black'/%3E%3Cellipse cx='125' cy='80' rx='15' ry='20' fill='black'/%3E%3Cellipse cx='75' cy='75' rx='5' ry='7' fill='white'/%3E%3Cellipse cx='125' cy='75' rx='5' ry='7' fill='white'/%3E%3Cellipse cx='100' cy='110' rx='25' ry='20' fill='black'/%3E%3Cpath d='M80 130 Q100 145 120 130' stroke='black' stroke-width='3' fill='none'/%3E%3Cellipse cx='40' cy='90' rx='25' ry='35' fill='%238B4513'/%3E%3Cellipse cx='160' cy='90' rx='25' ry='35' fill='%238B4513'/%3E%3C/svg%3E"
+            alt="Scooby"
+            class="scooby-avatar"
+            id="scoobyAvatar"
+          />
+          <div class="thought-bubble" id="thoughtBubble">
+            ¡Estoy pensando! 🤔
+          </div>
+        </div>
+
+        <div style="text-align: center">
+          <h3 style="color: var(--primary-color)">Estado de Scooby</h3>
+          <p id="scoobyStatus">🟢 Listo para ayudarte</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div class="config-modal" id="configModal">
+      <div class="config-content">
+        <h2 class="config-title">⚙️ Configuración</h2>
+        <label for="webhookUrl">URL del Webhook de n8n:</label>
+        <input
+          type="text"
+          class="config-input"
+          id="webhookUrl"
+          placeholder="https://tu-n8n.com/webhook/scooby-chat"
+        />
+        <label for="userAge"
+          >Edad del usuario (para personalizar respuestas):</label
+        >
+        <input
+          type="number"
+          class="config-input"
+          id="userAge"
+          placeholder="10"
+          min="6"
+          max="16"
+        />
+        <button class="config-save" onclick="saveConfig()">
+          Guardar Configuración
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Configuración
+      let config = {
+        webhookUrl: localStorage.getItem("scooby_webhook_url") || "",
+        userAge: localStorage.getItem("scooby_user_age") || 10,
+        userId: localStorage.getItem("scooby_user_id") || "user_" + Date.now(),
+        conversationId: "conv_" + Date.now(),
+      };
+
+      // Estado de la aplicación
+      let isRecording = false;
+      let recognition = null;
+      let synth = window.speechSynthesis;
+      let messageHistory = [];
+
+      // Inicialización
+      window.onload = function () {
+        if (!config.webhookUrl) {
+          toggleConfig();
+        }
+        initializeSpeechRecognition();
+        addRandomScoobySnacks();
+      };
+
+      // Funciones de configuración
+      function toggleConfig() {
+        const modal = document.getElementById("configModal");
+        modal.classList.toggle("show");
+
+        // Cargar valores actuales
+        document.getElementById("webhookUrl").value = config.webhookUrl;
+        document.getElementById("userAge").value = config.userAge;
+      }
+
+      function saveConfig() {
+        const webhookUrl = document.getElementById("webhookUrl").value;
+        const userAge = document.getElementById("userAge").value;
+
+        if (!webhookUrl) {
+          alert("Por favor, ingresa la URL del webhook de n8n");
+          return;
+        }
+
+        config.webhookUrl = webhookUrl;
+        config.userAge = userAge;
+
+        localStorage.setItem("scooby_webhook_url", webhookUrl);
+        localStorage.setItem("scooby_user_age", userAge);
+
+        toggleConfig();
+
+        addMessage("sistema", "✅ Configuración guardada correctamente");
+      }
+
+      // Funciones de chat
+      async function sendMessage(message = null) {
+        const input = document.getElementById("messageInput");
+        const text = message || input.value.trim();
+
+        if (!text) return;
+
+        if (!config.webhookUrl) {
+          alert("Por favor, configura primero la URL del webhook");
+          toggleConfig();
+          return;
+        }
+
+        // Agregar mensaje del usuario
+        addMessage("user", text);
+
+        // Limpiar input
+        input.value = "";
+
+        // Mostrar indicador de escritura
+        showTypingIndicator();
+
+        // Animar avatar
+        animateScooby(true);
+
+        try {
+          const response = await fetch(config.webhookUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: text,
+              userId: config.userId,
+              age: config.userAge,
+              conversationId: config.conversationId,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Error en la respuesta del servidor");
+          }
+
+          const data = await response.json();
+
+          hideTypingIndicator();
+          animateScooby(false);
+
+          // Procesar respuesta
+          if (data.success || data.output || data.text || data.message) {
+            const responseText =
+              data.output ||
+              data.text ||
+              data.message ||
+              data.data?.message ||
+              "Lo siento, no pude procesar tu mensaje";
+            addMessage("scooby", responseText);
+
+            // Text to speech
+            speakText(responseText);
+
+            // Actualizar sugerencias si las hay
+            if (data.data?.suggestions) {
+              updateSuggestions(data.data.suggestions);
+            }
+          } else {
+            addMessage(
+              "scooby",
+              "¡Ruh-roh! Parece que algo salió mal. ¿Puedes intentar de nuevo?"
+            );
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          hideTypingIndicator();
+          animateScooby(false);
+          addMessage(
+            "scooby",
+            "¡Ups! No pude conectarme al servidor. ¿Está configurada correctamente la URL del webhook?"
+          );
+        }
+      }
+
+      function addMessage(sender, text) {
+        const chatMessages = document.getElementById("chatMessages");
+        const messageDiv = document.createElement("div");
+        const time = new Date().toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        if (sender === "user") {
+          messageDiv.className = "user-message message";
+        } else if (sender === "scooby") {
+          messageDiv.className = "scooby-message message";
+        } else {
+          messageDiv.className = "scooby-message message";
+        }
+
+        messageDiv.innerHTML = `
+                <div>${text}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Guardar en historial
+        messageHistory.push({ sender, text, time });
+      }
+
+      function showTypingIndicator() {
+        const chatMessages = document.getElementById("chatMessages");
+        const typingDiv = document.createElement("div");
+        typingDiv.id = "typingIndicator";
+        typingDiv.className = "scooby-message message";
+        typingDiv.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function hideTypingIndicator() {
+        const indicator = document.getElementById("typingIndicator");
+        if (indicator) {
+          indicator.remove();
+        }
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendMessage();
+        }
+      }
+
+      function sendSuggestion(text) {
+        document.getElementById("messageInput").value = text;
+        sendMessage();
+      }
+
+      function updateSuggestions(suggestions) {
+        const suggestionsDiv = document.getElementById("suggestions");
+        suggestionsDiv.innerHTML = "";
+
+        suggestions.forEach((suggestion) => {
+          const chip = document.createElement("div");
+          chip.className = "suggestion-chip";
+          chip.onclick = () => sendSuggestion(suggestion);
+          chip.textContent = suggestion;
+          suggestionsDiv.appendChild(chip);
+        });
+      }
+
+      function clearChat() {
+        const chatMessages = document.getElementById("chatMessages");
+        chatMessages.innerHTML = `
+                <div class="scooby-message message">
+                    <div>¡Chat limpiado! 🧹 ¿En qué puedo ayudarte ahora?</div>
+                    <div class="message-time">Ahora</div>
+                </div>
+            `;
+        messageHistory = [];
+        config.conversationId = "conv_" + Date.now();
+      }
+
+      // Funciones de voz
+      function initializeSpeechRecognition() {
+        if (
+          "webkitSpeechRecognition" in window ||
+          "SpeechRecognition" in window
+        ) {
+          const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          recognition.lang = "es-ES";
+          recognition.continuous = false;
+          recognition.interimResults = false;
+
+          recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById("messageInput").value = transcript;
+            sendMessage(transcript);
+          };
+
+          recognition.onerror = function (event) {
+            console.error("Error de reconocimiento:", event.error);
+            isRecording = false;
+            updateVoiceButton();
+
+            if (event.error === "no-speech") {
+              addMessage(
+                "sistema",
+                "🎤 No escuché nada. Por favor, habla más fuerte y claro."
+              );
+            }
+          };
+
+          recognition.onend = function () {
+            isRecording = false;
+            updateVoiceButton();
+          };
+        }
+      }
+
+      function toggleVoice() {
+        if (!recognition) {
+          alert("Tu navegador no soporta reconocimiento de voz");
+          return;
+        }
+
+        if (isRecording) {
+          recognition.stop();
+          isRecording = false;
+        } else {
+          recognition.start();
+          isRecording = true;
+          addMessage("sistema", "🎤 Escuchando... Habla ahora");
+        }
+
+        updateVoiceButton();
+      }
+
+      function updateVoiceButton() {
+        const voiceBtn = document.getElementById("voiceBtn");
+        if (isRecording) {
+          voiceBtn.classList.add("recording");
+          voiceBtn.innerHTML = "⏹️ Detener";
+        } else {
+          voiceBtn.classList.remove("recording");
+          voiceBtn.innerHTML = "🎤 Hablar";
+        }
+      }
+
+      function speakText(text) {
+        if (!synth) return;
+
+        // Cancelar cualquier habla en curso
+        synth.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "es-ES";
+        utterance.rate = 1.0;
+        utterance.pitch = 1.2; // Voz más aguda para Scooby
+
+        // Seleccionar voz española si está disponible
+        const voices = synth.getVoices();
+        const spanishVoice = voices.find((voice) => voice.lang.includes("es"));
+        if (spanishVoice) {
+          utterance.voice = spanishVoice;
+        }
+
+        utterance.onstart = () => {
+          animateScooby(true);
+        };
+
+        utterance.onend = () => {
+          animateScooby(false);
+        };
+
+        synth.speak(utterance);
+      }
+
+      // Funciones de animación
+      function animateScooby(isTalking) {
+        const avatar = document.getElementById("scoobyAvatar");
+        const thoughtBubble = document.getElementById("thoughtBubble");
+        const status = document.getElementById("scoobyStatus");
+
+        if (isTalking) {
+          avatar.classList.add("talking");
+          thoughtBubble.classList.add("show");
+          status.textContent = "💬 Hablando...";
+        } else {
+          avatar.classList.remove("talking");
+          thoughtBubble.classList.remove("show");
+          status.textContent = "🟢 Listo para ayudarte";
+        }
+      }
+
+      function addRandomScoobySnacks() {
+        setInterval(() => {
+          if (Math.random() > 0.95) {
+            const snack = document.createElement("div");
+            snack.className = "scooby-snack";
+            snack.textContent = "🍪";
+            snack.style.left = Math.random() * window.innerWidth + "px";
+            document.body.appendChild(snack);
+
+            setTimeout(() => snack.remove(), 3000);
+          }
+        }, 5000);
+      }
+
+      // Función para detectar estado de conexión
+      function checkConnection() {
+        const statusElement = document.getElementById("connection-status");
+        const statusIndicator = document.querySelector(".status-indicator");
+
+        if (navigator.onLine && config.webhookUrl) {
+          statusElement.textContent = "Conectado";
+          statusIndicator.style.background = "#4CAF50";
+        } else {
+          statusElement.textContent = "Desconectado";
+          statusIndicator.style.background = "#ff4444";
+        }
+      }
+
+      // Verificar conexión cada 5 segundos
+      setInterval(checkConnection, 5000);
+
+      // Escuchar eventos de conexión
+      window.addEventListener("online", checkConnection);
+      window.addEventListener("offline", checkConnection);
+    </script>
+  </body>
+</html>

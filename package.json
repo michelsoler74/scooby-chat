@@ -1,0 +1,26 @@
+{
+  "name": "scooby-chat",
+  "version": "2.0.0",
+  "description": "Asistente virtual educativo para niños - Tu amigo mentor digital",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve . -l 3000"
+  },
+  "keywords": [
+    "education",
+    "kids",
+    "chatbot",
+    "spanish",
+    "ai",
+    "n8n",
+    "scooby-doo"
+  ],
+  "author": "Michel Soler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michelsoler74/scooby-chat.git"
+  },
+  "homepage": "https://scooby-chat.netlify.app"
+}
