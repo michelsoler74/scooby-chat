@@ -1018,6 +1018,7 @@
         <div style="text-align: center" id="scoobyStatusSection">
           <h3 style="color: var(--primary-color); margin: 5px 0">Estado de Scooby</h3>
           <p id="scoobyStatus" style="margin: 0">🟢 Listo para ayudarte</p>
+          <p id="betaIndicator" style="margin: 0; font-size: 8px; color: #ff6600; display: none;">🚀 BETA MODE</p>
         </div>
       </div>
     </div>
@@ -1046,11 +1047,26 @@
       // El código JavaScript no necesita cambios, la solución es 100% CSS.
       // Dejo el JS de la última versión que funcionaba.
 
+      // ========== CONFIGURACIÓN DE MODO BETA ==========
+      const IS_BETA_MODE = false; // ← Cambiar a 'true' para activar modo beta
+      
+      const BETA_WEBHOOK_URLS = [
+        "https://n8n.michel-ia.eu/webhook/scooby-beta-1",
+        "https://n8n.michel-ia.eu/webhook/scooby-beta-2", 
+        "https://n8n.michel-ia.eu/webhook/scooby-beta-3"
+      ];
+
+      // Función para obtener URL de beta aleatoria (load balancing)
+      function getRandomBetaUrl() {
+        return BETA_WEBHOOK_URLS[Math.floor(Math.random() * BETA_WEBHOOK_URLS.length)];
+      }
+
       // Configuración
       let config = {
-        webhookUrl: localStorage.getItem("scooby_webhook_url") || "",
+        webhookUrl: IS_BETA_MODE ? getRandomBetaUrl() : (localStorage.getItem("scooby_webhook_url") || ""),
         userId: localStorage.getItem("scooby_user_id") || "user_" + Date.now(),
         conversationId: "conv_" + Date.now(),
+        isBetaMode: IS_BETA_MODE,
       };
 
       // Estado de la aplicación
@@ -1299,9 +1315,15 @@
 
       // Inicialización
       window.onload = function () {
-        if (!config.webhookUrl) {
+        // En modo beta, no mostrar configuración - funciona automáticamente
+        if (!config.isBetaMode && !config.webhookUrl) {
           toggleConfig();
+        } else if (config.isBetaMode) {
+          // Modo beta: mostrar mensaje de bienvenida y indicador
+          addMessage("sistema", "🚀 Modo Beta activado - Scooby listo para funcionar!");
+          document.getElementById("betaIndicator").style.display = "block";
         }
+        
         initializeSpeechRecognition();
         addRandomScoobySnacks();
       };
@@ -1358,7 +1380,10 @@
         muteMicrophone();
 
         try {
-          const response = await fetch(config.webhookUrl, {
+          // En modo beta, usar URL aleatoria para cada mensaje (load balancing perfecto)
+          const webhookUrl = config.isBetaMode ? getRandomBetaUrl() : config.webhookUrl;
+          
+          const response = await fetch(webhookUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -1369,6 +1394,7 @@
               user_id: config.userId,
               userId: config.userId,
               conversationId: config.conversationId,
+              betaMode: config.isBetaMode, // Info para analytics
             }),
           });
 
