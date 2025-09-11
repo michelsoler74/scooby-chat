@@ -1183,9 +1183,64 @@
         }
       }
 
+      // Función para detectar auriculares
+      async function checkHeadphones() {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+          
+          // Si hay más de un dispositivo de audio, probablemente hay auriculares
+          return audioOutputs.length > 1;
+        } catch (error) {
+          return false; // Si no podemos detectar, asumimos que no hay
+        }
+      }
+
       // Función auxiliar para iniciar grabación de voz
-      function startVoiceRecording() {
+      async function startVoiceRecording() {
         if (!recognition || isCancelling || isBotResponding) return;
+
+        // Verificar auriculares y dar aviso si es necesario
+        const hasHeadphones = await checkHeadphones();
+        if (!hasHeadphones) {
+          addMessage(
+            "sistema",
+            "💡 Para mejor experiencia de voz, usa auriculares para evitar eco. ¿Continuar de todos modos?"
+          );
+          
+          // Dar opción de continuar
+          setTimeout(() => {
+            if (confirm("¿Usar voz sin auriculares? Puede haber eco o duplicaciones.")) {
+              startActualVoiceRecording();
+            }
+          }, 1000);
+          return;
+        }
+        
+        startActualVoiceRecording();
+      }
+
+      // Función real de grabación (separada para control)
+      async function startActualVoiceRecording() {
+        if (!recognition || isCancelling || isBotResponding) return;
+
+        // Configurar micrófono con reducción de eco
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,        // Cancelación de eco
+              noiseSuppression: true,        // Supresión de ruido
+              autoGainControl: true,         // Control automático de ganancia
+              sampleRate: 44100,             // Calidad de audio
+              volume: 0.8                    // Volumen reducido para evitar feedback
+            }
+          });
+          
+          // Cerrar el stream inmediatamente, solo era para configurar
+          stream.getTracks().forEach(track => track.stop());
+        } catch (error) {
+          console.log("No se pudo configurar audio avanzado, usando por defecto");
+        }
 
         document.getElementById("messageInput").value = "";
         recognition.start();
@@ -1604,6 +1659,9 @@
         if (!synth || isCancelling) return;
         synth.cancel();
         
+        // MUTE AGRESIVO: Asegurar que micrófono esté completamente silenciado
+        muteMicrophone();
+        
         // Limpiar el texto para TTS pero mantener original en pantalla
         const cleanText = cleanTextForTTS(text);
         
@@ -1615,24 +1673,34 @@
           .getVoices()
           .find((voice) => voice.lang.includes("es"));
         if (spanishVoice) utterance.voice = spanishVoice;
+        
         utterance.onstart = () => {
           if (!isCancelling) {
             animateScooby(true);
-            startMouthAnimation(); // iniciar labios al empezar a hablar
+            startMouthAnimation();
             trackEvent("tts_start");
+            
+            // DOBLE MUTE: Asegurar otra vez que esté silenciado
+            muteMicrophone();
           }
         };
+        
         utterance.onend = () => {
           if (!isCancelling) {
-            stopMouthAnimation(); // detener labios al terminar
+            stopMouthAnimation();
             animateScooby(false);
-            isBotResponding = false; // Resetear estado cuando termine de hablar
+            isBotResponding = false;
             trackEvent("tts_end");
 
-            // Reactivar micrófono si estaba grabando antes
-            unmuteMicrophone();
+            // Esperar 2 segundos extra antes de reactivar micrófono
+            setTimeout(() => {
+              if (!isCancelling) {
+                unmuteMicrophone();
+              }
+            }, 2000);
           }
         };
+        
         synth.speak(utterance);
       }
 
