@@ -1617,10 +1617,30 @@
         }
       }
 
+      // Función para limpiar texto para TTS
+      function cleanTextForTTS(text) {
+        return text
+          // Remover todos los emojis
+          .replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+          // Remover múltiples exclamaciones/interrogaciones
+          .replace(/[!]{2,}/g, '!')
+          .replace(/[?]{2,}/g, '?')
+          // Remover símbolos especiales que suenan mal
+          .replace(/[*•→←↑↓]/g, '')
+          // Limpiar espacios múltiples
+          .replace(/\s+/g, ' ')
+          // Remover espacios al inicio y final
+          .trim();
+      }
+
       function speakText(text) {
         if (!synth || isCancelling) return;
         synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Limpiar el texto para TTS pero mantener original en pantalla
+        const cleanText = cleanTextForTTS(text);
+        
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = "es-ES";
         utterance.rate = 1.0;
         utterance.pitch = 1.2;
