@@ -825,10 +825,9 @@
         <div class="chat-messages" id="chatMessages">
           <div class="scooby-message message">
             <div>
-              ¡Hola! Soy Scooby, tu compañero de aprendizaje y crecimiento. 🎓
-              Para poder ayudarte mejor, ¿me podrías decir en qué etapa
-              educativa estás? ¿Primaria, secundaria o universidad? ¡Estoy aquí
-              para acompañarte en tu camino de aprendizaje!
+              ¡Hola! Soy Scooby 🐕, tu compañero de aprendizaje. 
+              Estoy aquí para ayudarte con cualquier pregunta o tarea que tengas. 
+              ¿En qué puedo ayudarte hoy? 📚✨
             </div>
             <div class="message-time">Ahora</div>
           </div>
@@ -860,24 +859,7 @@
           </div>
 
           <div class="suggestions" id="suggestions">
-            <div
-              class="suggestion-chip"
-              onclick="sendSuggestion('Estoy en primaria')"
-            >
-              🎒 Primaria
-            </div>
-            <div
-              class="suggestion-chip"
-              onclick="sendSuggestion('Estoy en secundaria')"
-            >
-              🎓 Secundaria
-            </div>
-            <div
-              class="suggestion-chip"
-              onclick="sendSuggestion('Estoy en universidad')"
-            >
-              🎓 Universidad
-            </div>
+            <!-- Sugerencias dinámicas generadas por Scooby -->
           </div>
         </div>
       </div>
@@ -1051,17 +1033,9 @@
           id="webhookUrl"
           placeholder="https://tu-n8n.com/webhook/scooby-chat"
         />
-        <label for="userAge"
-          >Edad del usuario (para personalizar respuestas):</label
-        >
-        <input
-          type="number"
-          class="config-input"
-          id="userAge"
-          placeholder="10"
-          min="6"
-          max="16"
-        />
+        <p style="font-size: 12px; color: #666; margin: 10px 0;">
+          💡 Scooby detectará automáticamente la edad al conversar
+        </p>
         <button class="config-save" onclick="saveConfig()">
           Guardar Configuración
         </button>
@@ -1075,7 +1049,6 @@
       // Configuración
       let config = {
         webhookUrl: localStorage.getItem("scooby_webhook_url") || "",
-        userAge: localStorage.getItem("scooby_user_age") || 10,
         userId: localStorage.getItem("scooby_user_id") || "user_" + Date.now(),
         conversationId: "conv_" + Date.now(),
       };
@@ -1285,12 +1258,10 @@
 
         // Cargar valores actuales
         document.getElementById("webhookUrl").value = config.webhookUrl;
-        document.getElementById("userAge").value = config.userAge;
       }
 
       function saveConfig() {
         const webhookUrl = document.getElementById("webhookUrl").value;
-        const userAge = document.getElementById("userAge").value;
 
         if (!webhookUrl) {
           alert("Por favor, ingresa la URL del webhook de n8n");
@@ -1298,14 +1269,11 @@
         }
 
         config.webhookUrl = webhookUrl;
-        config.userAge = userAge;
-
         localStorage.setItem("scooby_webhook_url", webhookUrl);
-        localStorage.setItem("scooby_user_age", userAge);
 
         toggleConfig();
 
-        addMessage("sistema", "✅ Configuración guardada correctamente");
+        addMessage("sistema", "✅ Configuración guardada. ¡Scooby está listo!");
       }
 
       // Funciones de chat
@@ -1342,10 +1310,9 @@
             },
             body: JSON.stringify({
               message: text,
-              // Enviamos ambos por compatibilidad: user_id (nuevo) y userId (legacy)
+              // Enviamos user_id para identificación
               user_id: config.userId,
               userId: config.userId,
-              age: config.userAge,
               conversationId: config.conversationId,
             }),
           });
