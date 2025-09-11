@@ -285,6 +285,11 @@
         animation: recording 1s infinite;
       }
 
+      .voice-btn.muted {
+        background: #ff9800;
+        animation: none;
+      }
+
       @keyframes recording {
         0%,
         100% {
@@ -895,6 +900,9 @@
       let speechStartTime = null; // momento de inicio de grabación
       let isBotResponding = false; // controla si el bot está respondiendo
       let isCancelling = false; // controla si se está cancelando la interacción
+      // Control de muting automático para evitar auto-escucha
+      let isMicrophoneMuted = false; // controla si el micrófono está silenciado temporalmente
+      let wasRecordingBeforeMute = false; // recuerda si estaba grabando antes del mute
 
       // Telemetría ligera: envía eventos a un webhook separado o los omite si no hay URL
       function trackEvent(event, extra = {}) {
@@ -902,7 +910,7 @@
           // Solo enviar telemetría si hay una URL específica para telemetría
           // Por ahora, solo loguear localmente para no interferir con el webhook principal
           console.log("Telemetry event:", event, extra);
-          
+
           // Si quieres enviar telemetría a un webhook separado, descomenta esto:
           // const telemetryUrl = config.telemetryUrl || config.webhookUrl + "/telemetry";
           // if (telemetryUrl) {
@@ -962,6 +970,68 @@
         setMouthShape(0);
       }
 
+      // Función para mutear el micrófono temporalmente
+      function muteMicrophone() {
+        if (isRecording && recognition) {
+          wasRecordingBeforeMute = true;
+          isMicrophoneMuted = true;
+          recognition.stop();
+          isRecording = false;
+          trackEvent("microphone_muted", { reason: "bot_responding" });
+          console.log("🎤 Micrófono silenciado para evitar auto-escucha");
+
+          // Mostrar mensaje informativo
+          addMessage(
+            "sistema",
+            "🔇 Micrófono silenciado temporalmente mientras Scooby responde (para evitar auto-escucha)"
+          );
+
+          // Actualizar UI
+          updateVoiceButton();
+        }
+      }
+
+      // Función para reactivar el micrófono después de la respuesta
+      function unmuteMicrophone() {
+        if (isMicrophoneMuted && wasRecordingBeforeMute) {
+          isMicrophoneMuted = false;
+          wasRecordingBeforeMute = false;
+
+          // Mostrar mensaje informativo
+          addMessage(
+            "sistema",
+            "🎤 Micrófono reactivado. Puedes continuar hablando."
+          );
+
+          // Actualizar UI
+          updateVoiceButton();
+
+          // Pequeño delay para asegurar que la respuesta terminó completamente
+          setTimeout(() => {
+            if (!isCancelling && !isBotResponding) {
+              startVoiceRecording();
+              trackEvent("microphone_unmuted", { reason: "bot_finished" });
+              console.log("🎤 Micrófono reactivado");
+            }
+          }, 1000);
+        }
+      }
+
+      // Función auxiliar para iniciar grabación de voz
+      function startVoiceRecording() {
+        if (!recognition || isCancelling || isBotResponding) return;
+
+        document.getElementById("messageInput").value = "";
+        recognition.start();
+        trackEvent("voice_start");
+        addMessage(
+          "sistema",
+          "🎤 Escuchando... Habla con naturalidad, puedes hacer pausas"
+        );
+        isRecording = true;
+        updateVoiceButton();
+      }
+
       // Función para cancelar completamente toda la interacción
       function cancelAllInteractions() {
         isCancelling = true;
@@ -990,6 +1060,8 @@
         isRecording = false;
         isBotResponding = false;
         isCancelling = false;
+        isMicrophoneMuted = false;
+        wasRecordingBeforeMute = false;
 
         // Actualizar UI
         updateVoiceButton();
@@ -1065,6 +1137,9 @@
         showTypingIndicator();
         animateScooby(true);
         isBotResponding = true; // Marcar que el bot está respondiendo
+
+        // Mutear micrófono para evitar auto-escucha
+        muteMicrophone();
 
         try {
           const response = await fetch(config.webhookUrl, {
@@ -1327,27 +1402,24 @@
         }
 
         // Iniciar nueva grabación
-        document.getElementById("messageInput").value = "";
-        recognition.start();
-        trackEvent("voice_start");
-        addMessage(
-          "sistema",
-          "🎤 Escuchando... Habla con naturalidad, puedes hacer pausas"
-        );
-        isRecording = true;
-        updateVoiceButton();
+        startVoiceRecording();
       }
 
       function updateVoiceButton() {
         const voiceBtn = document.getElementById("voiceBtn");
+        // Limpiar todas las clases de estado
+        voiceBtn.classList.remove("recording", "muted");
+
         if (isRecording) {
           voiceBtn.classList.add("recording");
           voiceBtn.innerHTML = "🛑 Cancelar";
         } else if (isBotResponding) {
           voiceBtn.classList.add("recording");
           voiceBtn.innerHTML = "🛑 Cancelar";
+        } else if (isMicrophoneMuted) {
+          voiceBtn.classList.add("muted");
+          voiceBtn.innerHTML = "🔇 Micrófono Silenciado";
         } else {
-          voiceBtn.classList.remove("recording");
           voiceBtn.innerHTML = "🎤 Hablar";
         }
       }
@@ -1376,6 +1448,9 @@
             animateScooby(false);
             isBotResponding = false; // Resetear estado cuando termine de hablar
             trackEvent("tts_end");
+
+            // Reactivar micrófono si estaba grabando antes
+            unmuteMicrophone();
           }
         };
         synth.speak(utterance);
