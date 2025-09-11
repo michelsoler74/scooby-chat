@@ -1192,7 +1192,7 @@
         trackEvent("voice_start");
         addMessage(
           "sistema",
-          "🎤 Escuchando... Habla con naturalidad, puedes hacer pausas"
+          "🎤 Te escucho... Habla tranquilo, puedes hacer pausas para pensar"
         );
         isRecording = true;
         updateVoiceButton();
@@ -1444,17 +1444,17 @@
           recognition.onstart = () => {
             speechStartTime = Date.now();
             trackEvent("stt_start");
-            // Timeout de 8 segundos de silencio antes de parar
+            // Timeout de 15 segundos de silencio antes de parar (más tiempo para niños)
             speechTimeout = setTimeout(() => {
               if (isRecording && !isBotResponding) {
                 recognition.stop();
                 addMessage(
                   "sistema",
-                  "🎤 Tiempo de silencio agotado. Procesando..."
+                  "🎤 Te escucho... Tómate tu tiempo para hablar"
                 );
                 trackEvent("stt_timeout");
               }
-            }, 8000);
+            }, 15000);
           };
 
           recognition.onresult = (event) => {
@@ -1489,17 +1489,17 @@
               document.getElementById("messageInput").value = interimTranscript;
             }
 
-            // Reiniciar timeout si hay actividad
+            // Reiniciar timeout si hay actividad (más tiempo para pausas naturales)
             if (isRecording && !isCancelling) {
               speechTimeout = setTimeout(() => {
                 if (isRecording && !isBotResponding && !isCancelling) {
                   recognition.stop();
                   addMessage(
                     "sistema",
-                    "🎤 Tiempo de silencio agotado. Procesando..."
+                    "🎤 Perfecto, procesando tu mensaje..."
                   );
                 }
-              }, 6000); // 6 segundos después del último resultado
+              }, 12000); // 12 segundos después del último resultado (doubled)
             }
           };
 
