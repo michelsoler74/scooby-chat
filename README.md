@@ -2,6 +2,9 @@
 
 Asistente virtual educativo diseñado para niños y jóvenes de 6 a 18+ años, que actúa como un "Amigo Mentor" digital. Scooby se adapta dinámicamente a cada etapa educativa, desde primaria hasta universidad, proporcionando apoyo personalizado en el aprendizaje.
 
+## 🚀 **MODO BETA ACTIVO**
+Scooby está ahora en modo beta con sistema de load balancing automático para mayor estabilidad y escalabilidad.
+
 ## 🎯 ¿Qué hace Scooby?
 
 Scooby es más que un chatbot: es un compañero de aprendizaje que:
@@ -47,9 +50,10 @@ Scooby es más que un chatbot: es un compañero de aprendizaje que:
 - **Sugerencias contextuales**: Opciones adaptadas a cada etapa educativa
 
 ### 🛡️ Seguridad y privacidad
-- **Protocolos de seguridad**: Manejo seguro de temas sensibles
+- **Protocolos de seguridad**: Manejo seguro de temas sensibles con "Código Rojo"
 - **Sin datos personales**: No solicita información identificable
 - **Contenido apropiado**: Filtros de edad y contenido
+- **Búsqueda web controlada**: Restringida por edad para máxima seguridad
 
 ## 🔧 Configuración rápida
 

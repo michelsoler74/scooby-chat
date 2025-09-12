@@ -8,12 +8,13 @@
 
 ## Configuración del Backend (n8n)
 
-### Paso 1: Importar el workflow
+### Paso 1: Crear el workflow
 
 1. Accede a tu instancia de n8n
 2. Crea un nuevo workflow
-3. Importa el archivo `Scooby Chat Backend.json`
+3. Configura un nodo Webhook + nodo HTTP Request a Google Gemini
 4. Configura las credenciales de Google Gemini
+5. Para modo Beta: Crea 3 workflows idénticos con URLs diferentes
 
 ### Paso 2: Activar el webhook
 
@@ -31,8 +32,10 @@
 ### Paso 2: Configurar el webhook
 
 1. Pega la URL del webhook copiada de n8n
-2. Ingresa la edad del usuario (6-16 años)
+2. Selecciona la etapa educativa: Primaria (6-11), Secundaria (12-17), Universidad (18+)
 3. Guarda la configuración
+
+**Nota**: En modo Beta, la configuración es automática.
 
 ## Solución de problemas
 

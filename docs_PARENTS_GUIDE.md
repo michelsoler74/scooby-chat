@@ -2,7 +2,7 @@
 
 ## ¿Qué es Scooby Chat?
 
-Scooby Chat es un asistente virtual educativo diseñado específicamente para niños y adolescentes de 6 a 16 años. Actúa como un "Amigo Mentor" digital que puede:
+Scooby Chat es un asistente virtual educativo diseñado específicamente para niños, adolescentes y jóvenes de 6 a 18+ años. Actúa como un "Amigo Mentor" digital que puede:
 
 - Ayudar con tareas escolares
 - Contar historias educativas
@@ -18,7 +18,7 @@ Scooby Chat es un asistente virtual educativo diseñado específicamente para ni
 
 ✅ **Contenido filtrado**: Todas las respuestas están filtradas para ser apropiadas para la edad
 
-✅ **Sin enlaces externos**: La aplicación no redirige a sitios externos
+✅ **Búsqueda web controlada**: Solo para usuarios de secundaria/universidad, con fuentes educativas verificadas
 
 ✅ **Supervisión recomendada**: Recomendamos que los padres supervisen las interacciones
 
