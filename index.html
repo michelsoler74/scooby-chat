@@ -1176,6 +1176,7 @@
       // Variables de grabación simplificadas
       let recordedMessage = ""; // mensaje grabado pendiente de enviar
       let hasRecordedMessage = false; // indica si hay un mensaje grabado
+      let isUserRecording = false; // indica si el usuario quiere seguir grabando
 
       // Telemetría ligera: envía eventos a un webhook separado o los omite si no hay URL
       function trackEvent(event, extra = {}) {
@@ -1248,6 +1249,7 @@
         recordedMessage = "";
         hasRecordedMessage = false;
         isBotResponding = false;
+        isUserRecording = false; // Desactivar modo continuo
 
         // Parar cualquier grabación activa
         if (isRecording && recognition) {
@@ -1290,7 +1292,7 @@
         }
       }
 
-      // Función simplificada de grabación
+      // Función simplificada de grabación con reinicio automático
       async function startRecording() {
         if (!recognition || isCancelling) return;
 
@@ -1302,6 +1304,7 @@
         // Limpiar input y iniciar
         document.getElementById("messageInput").value = "";
         recordedMessage = "";
+        isUserRecording = true; // El usuario quiere grabar
 
         // Iniciar grabación
         recognition.start();
@@ -1309,7 +1312,7 @@
 
         addMessage(
           "sistema",
-          "🎤 Grabando... Usa el botón 'Enviar 📤' cuando termines"
+          "🎤 Grabando... Puedes hablar, pensar y seguir hablando sin límite"
         );
 
         isRecording = true;
@@ -1319,6 +1322,7 @@
       // Función para cancelar completamente toda la interacción
       function cancelAllInteractions() {
         isCancelling = true;
+        isUserRecording = false; // Desactivar modo continuo
 
         // Parar reconocimiento de voz
         if (recognition && isRecording) {
@@ -1411,6 +1415,7 @@
 
         // Parar grabación si está activa al enviar mensaje
         if (isRecording && recognition) {
+          isUserRecording = false; // Desactivar modo continuo
           recognition.stop();
           isRecording = false;
         }
@@ -1654,16 +1659,38 @@
           };
 
           recognition.onend = () => {
-            isRecording = false;
-            updateVoiceButton();
             trackEvent("stt_end");
 
-            // Si hay mensaje grabado, indicar al usuario
-            if (hasRecordedMessage && !isBotResponding && !isCancelling) {
-              addMessage("sistema", "✅ Grabación terminada. Usa 'Enviar 📤' para mandar el mensaje");
-            } else if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
-              addMessage("sistema", "🎤 No se detectó mensaje. Intenta grabar de nuevo.");
-              resetToRecordState();
+            // REINICIO AUTOMÁTICO: Si el usuario quiere seguir grabando
+            if (isUserRecording && !isCancelling && !isBotResponding) {
+              console.log("🔄 Reiniciando grabación automáticamente...");
+
+              // Reiniciar automáticamente después de un breve delay
+              setTimeout(() => {
+                if (isUserRecording && !isCancelling) {
+                  try {
+                    recognition.start();
+                    // No cambiar isRecording a false porque seguimos grabando
+                  } catch (error) {
+                    console.error("Error al reiniciar grabación:", error);
+                    isRecording = false;
+                    isUserRecording = false;
+                    updateVoiceButton();
+                    addMessage("sistema", "❌ Error al mantener grabación. Presiona 'Grabar' de nuevo.");
+                  }
+                }
+              }, 100); // Pequeño delay para evitar conflictos
+            } else {
+              // Parada definitiva por el usuario
+              isRecording = false;
+              updateVoiceButton();
+
+              if (hasRecordedMessage && !isBotResponding && !isCancelling) {
+                addMessage("sistema", "✅ Grabación terminada. Usa 'Enviar 📤' para mandar el mensaje");
+              } else if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
+                addMessage("sistema", "🎤 No se detectó mensaje. Intenta grabar de nuevo.");
+                resetToRecordState();
+              }
             }
           };
         }
@@ -1690,6 +1717,7 @@
         // Si está grabando, parar grabación
         if (isRecording) {
           trackEvent("stop_recording");
+          isUserRecording = false; // Desactivar modo continuo
           recognition.stop();
           isRecording = false;
           updateVoiceButton();
