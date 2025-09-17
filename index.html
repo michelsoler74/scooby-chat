@@ -1166,6 +1166,7 @@
       let buttonState = "record"; // "record", "send"
       let recordedMessage = ""; // mensaje grabado pendiente de enviar
       let hasRecordedMessage = false; // indica si hay un mensaje grabado
+      let shouldKeepRecording = false; // controla si debe reiniciar automáticamente tras paradas por silencio
 
       // Telemetría ligera: envía eventos a un webhook separado o los omite si no hay URL
       function trackEvent(event, extra = {}) {
@@ -1239,6 +1240,7 @@
         recordedMessage = "";
         hasRecordedMessage = false;
         isBotResponding = false;
+        shouldKeepRecording = false; // DESACTIVAR MODO CONTINUO
 
         // Parar cualquier grabación activa
         if (isRecording && recognition) {
@@ -1302,6 +1304,7 @@
         document.getElementById("messageInput").value = "";
         buttonState = "recording";
         recordedMessage = "";
+        shouldKeepRecording = true; // ACTIVAR MODO CONTINUO
 
         // Iniciar grabación
         recognition.start();
@@ -1309,7 +1312,7 @@
 
         addMessage(
           "sistema",
-          "🎤 Grabando... Habla tu mensaje"
+          "🎤 Grabando... Habla tu mensaje (sin límite de tiempo)"
         );
 
         isRecording = true;
@@ -1319,6 +1322,7 @@
       // Función para cancelar completamente toda la interacción
       function cancelAllInteractions() {
         isCancelling = true;
+        shouldKeepRecording = false; // DESACTIVAR REINICIO AUTOMÁTICO
 
         // Parar reconocimiento de voz
         if (recognition && isRecording) {
@@ -1402,6 +1406,13 @@
       async function sendMessage(message = null) {
         // Si se está cancelando, no procesar mensajes
         if (isCancelling) return;
+
+        // DESACTIVAR MODO CONTINUO al enviar mensaje
+        shouldKeepRecording = false;
+        if (isRecording && recognition) {
+          recognition.stop();
+          isRecording = false;
+        }
 
         const input = document.getElementById("messageInput");
         const text = message || input.value.trim();
@@ -1634,13 +1645,35 @@
           };
 
           recognition.onend = () => {
-            isRecording = false;
-            updateVoiceButton();
             trackEvent("stt_end");
 
-            // SISTEMA DE 3 ESTADOS: Si terminó grabación sin mensaje, resetear
-            if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
-              resetToRecordState();
+            // REINICIO AUTOMÁTICO: Si debemos seguir grabando y no fue parada manualmente
+            if (shouldKeepRecording && !isCancelling && !isBotResponding) {
+              // Reiniciar automáticamente para mantener la grabación continua
+              console.log("🔄 Reiniciando grabación automáticamente tras pausa de silencio");
+
+              setTimeout(() => {
+                if (shouldKeepRecording && !isCancelling) {
+                  try {
+                    recognition.start();
+                    // No cambiar isRecording = false porque seguimos grabando
+                  } catch (error) {
+                    console.error("Error al reiniciar grabación:", error);
+                    isRecording = false;
+                    resetToRecordState();
+                    addMessage("sistema", "❌ Error al mantener grabación. Intenta de nuevo.");
+                  }
+                }
+              }, 100); // Pequeño delay para evitar conflictos
+            } else {
+              // Parada definitiva
+              isRecording = false;
+              updateVoiceButton();
+
+              // SISTEMA DE 3 ESTADOS: Si terminó grabación sin mensaje, resetear
+              if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
+                resetToRecordState();
+              }
             }
           };
         }
@@ -1669,6 +1702,7 @@
         // Si está grabando actualmente, parar y cambiar a modo envío
         if (isRecording) {
           trackEvent("state_stop_recording");
+          shouldKeepRecording = false; // DESACTIVAR REINICIO AUTOMÁTICO
           recognition.stop();
           isRecording = false;
           if (hasRecordedMessage) {
