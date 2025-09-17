@@ -926,6 +926,13 @@
             >
               🎤 Grabar
             </button>
+            <button
+              class="control-btn stop-btn"
+              id="stopAudioBtn"
+              onclick="stopScoobyAudio()"
+            >
+              🔇 Parar Audio
+            </button>
             <button class="control-btn clear-btn" onclick="clearChat()">
               🧹 Limpiar
             </button>
@@ -1136,18 +1143,36 @@
         "https://n8n.michel-ia.eu/webhook/scooby-beta-3"
       ];
 
-      // Función para obtener URL de beta aleatoria (load balancing)
-      function getRandomBetaUrl() {
-        return BETA_WEBHOOK_URLS[Math.floor(Math.random() * BETA_WEBHOOK_URLS.length)];
+      // Función para obtener URL consistente por usuario (load balancing + memoria)
+      function getUserConsistentUrl(userId) {
+        // Simple hash function para distribuir usuarios consistentemente
+        let hash = 0;
+        for (let i = 0; i < userId.length; i++) {
+          const char = userId.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        const index = Math.abs(hash) % BETA_WEBHOOK_URLS.length;
+        return BETA_WEBHOOK_URLS[index];
       }
 
       // Configuración
       let config = {
-        webhookUrl: IS_BETA_MODE ? getRandomBetaUrl() : (localStorage.getItem("scooby_webhook_url") || ""),
         userId: localStorage.getItem("scooby_user_id") || "user_" + Date.now(),
         conversationId: localStorage.getItem("scooby_conversation_id") || "conv_" + Date.now(),
         isBetaMode: IS_BETA_MODE,
       };
+
+      // Configurar URL según modo
+      if (IS_BETA_MODE) {
+        // TEST: Una sola URL para confirmar problema de memoria
+        config.webhookUrl = "https://n8n.michel-ia.eu/webhook/scooby-beta-1";
+
+        // PRODUCCIÓN: Hash consistente del userId (descomenta para activar)
+        // config.webhookUrl = getUserConsistentUrl(config.userId);
+      } else {
+        config.webhookUrl = localStorage.getItem("scooby_webhook_url") || "";
+      }
 
       // Guardar IDs en localStorage para persistencia
       localStorage.setItem("scooby_user_id", config.userId);
@@ -1427,8 +1452,8 @@
         isBotResponding = true; // Marcar que el bot está respondiendo
 
         try {
-          // En modo beta, usar URL aleatoria para cada mensaje (load balancing perfecto)
-          const webhookUrl = config.isBetaMode ? getRandomBetaUrl() : config.webhookUrl;
+          // TEST: Usando una sola URL para confirmar problema de memoria
+          const webhookUrl = config.webhookUrl;
           
           const response = await fetch(webhookUrl, {
             method: "POST",
@@ -1568,6 +1593,25 @@
         localStorage.setItem("scooby_conversation_id", config.conversationId);
         clearChat();
         console.log("Nueva conversación iniciada:", config.conversationId);
+      }
+
+      // Función para parar audio de Scooby (siempre disponible)
+      function stopScoobyAudio() {
+        // Parar síntesis de voz inmediatamente
+        if (synth) {
+          synth.cancel();
+        }
+
+        // Parar animaciones
+        stopMouthAnimation();
+        animateScooby(false);
+
+        // Resetear estados de respuesta
+        isBotResponding = false;
+        hideTypingIndicator();
+
+        addMessage("sistema", "🔇 Audio de Scooby parado");
+        console.log("🔇 Audio de Scooby parado por el usuario");
       }
 
       function initializeSpeechRecognition() {
