@@ -1166,11 +1166,11 @@
 
       // Configurar URL según modo
       if (IS_BETA_MODE) {
-        // TEST: Una sola URL para confirmar problema de memoria
-        config.webhookUrl = "https://n8n.michel-ia.eu/webhook/scooby-beta-1";
+        // PRODUCCIÓN: Hash consistente del userId - ACTIVADO
+        config.webhookUrl = getUserConsistentUrl(config.userId);
 
-        // PRODUCCIÓN: Hash consistente del userId (descomenta para activar)
-        // config.webhookUrl = getUserConsistentUrl(config.userId);
+        // Debug: mostrar qué workflow le tocó al usuario
+        console.log(`🔀 Usuario ${config.userId} asignado a: ${config.webhookUrl}`);
       } else {
         config.webhookUrl = localStorage.getItem("scooby_webhook_url") || "";
       }
