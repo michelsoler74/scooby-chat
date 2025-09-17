@@ -1152,9 +1152,13 @@
       let config = {
         webhookUrl: IS_BETA_MODE ? getRandomBetaUrl() : (localStorage.getItem("scooby_webhook_url") || ""),
         userId: localStorage.getItem("scooby_user_id") || "user_" + Date.now(),
-        conversationId: "conv_" + Date.now(),
+        conversationId: localStorage.getItem("scooby_conversation_id") || "conv_" + Date.now(),
         isBetaMode: IS_BETA_MODE,
       };
+
+      // Guardar IDs en localStorage para persistencia
+      localStorage.setItem("scooby_user_id", config.userId);
+      localStorage.setItem("scooby_conversation_id", config.conversationId);
 
       // Estado de la aplicación
       let isRecording = false;
@@ -1561,7 +1565,16 @@
         const chatMessages = document.getElementById("chatMessages");
         chatMessages.innerHTML = `<div class="scooby-message message"><div>¡Chat limpiado! 🧹 ¿En qué puedo ayudarte ahora?</div><div class="message-time">Ahora</div></div>`;
         messageHistory = [];
+        // NO regenerar conversationId - mantener contexto de la conversación
+        console.log("Chat limpiado pero conversación mantenida:", config.conversationId);
+      }
+
+      // Función para resetear completamente la conversación (si fuera necesario)
+      function resetConversation() {
         config.conversationId = "conv_" + Date.now();
+        localStorage.setItem("scooby_conversation_id", config.conversationId);
+        clearChat();
+        console.log("Nueva conversación iniciada:", config.conversationId);
       }
 
       function initializeSpeechRecognition() {
