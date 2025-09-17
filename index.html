@@ -891,9 +891,16 @@
         <div class="chat-messages" id="chatMessages">
           <div class="scooby-message message">
             <div>
-              ¡Hola! Soy Scooby 🐕, tu compañero de aprendizaje. 
-              Estoy aquí para ayudarte con cualquier pregunta o tarea que tengas. 
-              ¿En qué puedo ayudarte hoy? 📚✨
+              ¡Hola! Soy Scooby 🐕, tu compañero de aprendizaje.
+              <br><br>
+              🎤 <strong>¡NUEVO SISTEMA!</strong> Para hablar conmigo:
+              <br>• 1️⃣ Pulsa "🎤 Grabar Mensaje"
+              <br>• 2️⃣ Habla tu pregunta
+              <br>• 3️⃣ Pulsa "📤 Enviar a Scooby"
+              <br><br>
+              💡 <strong>¡Puedes interrumpirme!</strong> Si estoy hablando y quieres hacer otra pregunta, simplemente pulsa "🎤 Grabar Mensaje" y mi audio se parará automáticamente.
+              <br><br>
+              ¡También puedes escribir normalmente! ¿En qué te ayudo? 📚✨
             </div>
             <div class="message-time">Ahora</div>
           </div>
@@ -1155,9 +1162,10 @@
       let speechStartTime = null; // momento de inicio de grabación
       let isBotResponding = false; // controla si el bot está respondiendo
       let isCancelling = false; // controla si se está cancelando la interacción
-      // Control de muting automático para evitar auto-escucha
-      let isMicrophoneMuted = false; // controla si el micrófono está silenciado temporalmente
-      let wasRecordingBeforeMute = false; // recuerda si estaba grabando antes del mute
+      // SISTEMA DE 3 ESTADOS: Grabar → Enviar → Grabar (con parada automática de audio)
+      let buttonState = "record"; // "record", "send"
+      let recordedMessage = ""; // mensaje grabado pendiente de enviar
+      let hasRecordedMessage = false; // indica si hay un mensaje grabado
 
       // Telemetría ligera: envía eventos a un webhook separado o los omite si no hay URL
       function trackEvent(event, extra = {}) {
@@ -1225,51 +1233,39 @@
         setMouthShape(0);
       }
 
-      // Función para mutear el micrófono temporalmente
-      function muteMicrophone() {
+      // SISTEMA DE 3 ESTADOS: Función para resetear a estado inicial
+      function resetToRecordState() {
+        buttonState = "record";
+        recordedMessage = "";
+        hasRecordedMessage = false;
+        isBotResponding = false;
+
+        // Parar cualquier grabación activa
         if (isRecording && recognition) {
-          wasRecordingBeforeMute = true;
-          isMicrophoneMuted = true;
           recognition.stop();
           isRecording = false;
-          trackEvent("microphone_muted", { reason: "bot_responding" });
-          console.log("🎤 Micrófono silenciado para evitar auto-escucha");
-
-          // Mostrar mensaje informativo
-          addMessage(
-            "sistema",
-            "🔇 Micrófono silenciado temporalmente mientras Scooby responde (para evitar auto-escucha)"
-          );
-
-          // Actualizar UI
-          updateVoiceButton();
         }
+
+        updateVoiceButton();
+        console.log("🔄 Volviendo a estado inicial: Listo para grabar");
       }
 
-      // Función para reactivar el micrófono después de la respuesta
-      function unmuteMicrophone() {
-        if (isMicrophoneMuted && wasRecordingBeforeMute) {
-          isMicrophoneMuted = false;
-          wasRecordingBeforeMute = false;
-
-          // Mostrar mensaje informativo
-          addMessage(
-            "sistema",
-            "🎤 Micrófono reactivado. Puedes continuar hablando."
-          );
-
-          // Actualizar UI
-          updateVoiceButton();
-
-          // Pequeño delay para asegurar que la respuesta terminó completamente
-          setTimeout(() => {
-            if (!isCancelling && !isBotResponding) {
-              startVoiceRecording();
-              trackEvent("microphone_unmuted", { reason: "bot_finished" });
-              console.log("🎤 Micrófono reactivado");
-            }
-          }, 1000);
+      // SISTEMA DE 3 ESTADOS: Función para parar solo el audio de Scooby
+      function stopScoobyAudioOnly() {
+        // Parar síntesis de voz inmediatamente
+        if (synth) {
+          synth.cancel();
         }
+
+        // Parar animaciones
+        stopMouthAnimation();
+        animateScooby(false);
+
+        // Resetear estados de respuesta
+        isBotResponding = false;
+        hideTypingIndicator();
+
+        console.log("🔇 Audio de Scooby parado - Listo para nueva grabación");
       }
 
       // Función para detectar auriculares
@@ -1285,59 +1281,37 @@
         }
       }
 
-      // Función auxiliar para iniciar grabación de voz
-      async function startVoiceRecording() {
-        if (!recognition || isCancelling || isBotResponding) return;
+      // SISTEMA DE 3 ESTADOS: Iniciar grabación
+      async function startRecording() {
+        if (!recognition || isCancelling) return;
 
-        // Verificar auriculares y dar aviso si es necesario
-        const hasHeadphones = await checkHeadphones();
-        if (!hasHeadphones) {
-          addMessage(
-            "sistema",
-            "💡 Para mejor experiencia de voz, usa auriculares para evitar eco. ¿Continuar de todos modos?"
-          );
-          
-          // Dar opción de continuar
-          setTimeout(() => {
-            if (confirm("¿Usar voz sin auriculares? Puede haber eco o duplicaciones.")) {
-              startActualVoiceRecording();
-            }
-          }, 1000);
-          return;
+        // Si Scooby está hablando, pararlo automáticamente
+        if (isBotResponding) {
+          stopScoobyAudioOnly();
         }
-        
+
+        // Iniciar grabación
         startActualVoiceRecording();
       }
 
-      // Función real de grabación (separada para control)
+      // SISTEMA DE 3 ESTADOS: Función real de grabación
       async function startActualVoiceRecording() {
-        if (!recognition || isCancelling || isBotResponding) return;
+        if (!recognition || isCancelling) return;
 
-        // Configurar micrófono con reducción de eco
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,        // Cancelación de eco
-              noiseSuppression: true,        // Supresión de ruido
-              autoGainControl: true,         // Control automático de ganancia
-              sampleRate: 44100,             // Calidad de audio
-              volume: 0.8                    // Volumen reducido para evitar feedback
-            }
-          });
-          
-          // Cerrar el stream inmediatamente, solo era para configurar
-          stream.getTracks().forEach(track => track.stop());
-        } catch (error) {
-          console.log("No se pudo configurar audio avanzado, usando por defecto");
-        }
-
+        // Limpiar input y cambiar estado
         document.getElementById("messageInput").value = "";
+        buttonState = "recording";
+        recordedMessage = "";
+
+        // Iniciar grabación
         recognition.start();
-        trackEvent("voice_start");
+        trackEvent("three_state_recording_start");
+
         addMessage(
           "sistema",
-          "🎤 Te escucho... Habla tranquilo, puedes hacer pausas para pensar"
+          "🎤 Grabando... Habla tu mensaje"
         );
+
         isRecording = true;
         updateVoiceButton();
       }
@@ -1366,12 +1340,11 @@
         stopMouthAnimation();
         animateScooby(false);
 
-        // Resetear estados
+        // Resetear estados (SISTEMA DE 3 ESTADOS)
         isRecording = false;
         isBotResponding = false;
         isCancelling = false;
-        isMicrophoneMuted = false;
-        wasRecordingBeforeMute = false;
+        resetToRecordState();
 
         // Actualizar UI
         updateVoiceButton();
@@ -1382,7 +1355,7 @@
 
         addMessage(
           "sistema",
-          "🛑 Interacción cancelada. Listo para una nueva conversación."
+          "🛑 Parado. Listo para grabar nueva pregunta."
         );
       }
 
@@ -1393,9 +1366,12 @@
           toggleConfig();
         } else if (config.isBetaMode) {
           // Modo beta: mostrar mensaje de bienvenida y indicador
-          addMessage("sistema", "🚀 Modo Beta activado - Scooby listo para funcionar!");
+          addMessage("sistema", "🚀 Modo Beta activado - Sistema de 3 estados activo!");
           document.getElementById("betaIndicator").style.display = "block";
         }
+
+        // Inicializar en estado de grabación
+        resetToRecordState();
         
         initializeSpeechRecognition();
         addRandomScoobySnacks();
@@ -1449,9 +1425,6 @@
         animateScooby(true);
         isBotResponding = true; // Marcar que el bot está respondiendo
 
-        // Mutear micrófono para evitar auto-escucha
-        muteMicrophone();
-
         try {
           // En modo beta, usar URL aleatoria para cada mensaje (load balancing perfecto)
           const webhookUrl = config.isBetaMode ? getRandomBetaUrl() : config.webhookUrl;
@@ -1499,17 +1472,19 @@
               "scooby",
               "¡Ruh-roh! Parece que algo salió mal. ¿Puedes intentar de nuevo?"
             );
-            isBotResponding = false; // Resetear estado si no hay respuesta
+            // SISTEMA DE 3 ESTADOS: Resetear tras error
+            resetToRecordState();
           }
         } catch (error) {
           console.error("Error:", error);
           hideTypingIndicator();
           animateScooby(false);
-          isBotResponding = false; // Resetear estado en caso de error
           addMessage(
             "scooby",
             "¡Ups! No pude conectarme al servidor. ¿Está configurada correctamente la URL del webhook?"
           );
+          // SISTEMA DE 3 ESTADOS: Resetear tras error
+          resetToRecordState();
         }
       }
 
@@ -1634,26 +1609,45 @@
               }
             }
 
-            // Mostrar resultado final o provisional
+            // SISTEMA DE 3 ESTADOS: Guardar transcript y cambiar a modo envío
             if (finalTranscript && !isCancelling) {
+              recordedMessage = finalTranscript;
               document.getElementById("messageInput").value = finalTranscript;
-              sendMessage(finalTranscript);
+              // Parar grabación y cambiar a modo envío
+              recognition.stop();
+              isRecording = false;
+              buttonState = "send";
+              hasRecordedMessage = true;
+
+              addMessage("sistema", "✅ Mensaje grabado. Pulsa 📤 Enviar para mandarlo a Scooby");
+              updateVoiceButton();
+
             } else if (interimTranscript && !isCancelling) {
               // Mostrar texto provisional en el input
               document.getElementById("messageInput").value = interimTranscript;
             }
 
-            // Reiniciar timeout si hay actividad (más tiempo para pausas naturales)
+            // Timeout para finalizar grabación si no hay más input
             if (isRecording && !isCancelling) {
               speechTimeout = setTimeout(() => {
-                if (isRecording && !isBotResponding && !isCancelling) {
-                  recognition.stop();
-                  addMessage(
-                    "sistema",
-                    "🎤 Perfecto, procesando tu mensaje..."
-                  );
+                if (isRecording && !isCancelling) {
+                  const currentText = document.getElementById("messageInput").value.trim();
+                  if (currentText) {
+                    recordedMessage = currentText;
+                    recognition.stop();
+                    isRecording = false;
+                    buttonState = "send";
+                    hasRecordedMessage = true;
+                    addMessage("sistema", "✅ Grabación finalizada. Pulsa 📤 Enviar");
+                    updateVoiceButton();
+                  } else {
+                    recognition.stop();
+                    isRecording = false;
+                    resetToRecordState();
+                    addMessage("sistema", "🎤 No se escuchó nada. Intenta grabar de nuevo.");
+                  }
                 }
-              }, 12000); // 12 segundos después del último resultado (doubled)
+              }, 3000);
             }
           };
 
@@ -1682,7 +1676,8 @@
               );
             }
             isRecording = false;
-            updateVoiceButton();
+            // SISTEMA DE 3 ESTADOS: Resetear tras error
+            resetToRecordState();
           };
 
           recognition.onend = () => {
@@ -1693,32 +1688,47 @@
             isRecording = false;
             updateVoiceButton();
             trackEvent("stt_end");
+
+            // SISTEMA DE 3 ESTADOS: Si terminó grabación sin mensaje, resetear
+            if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
+              resetToRecordState();
+            }
           };
         }
       }
 
+      // SISTEMA DE 3 ESTADOS: Función principal de toggle
       function toggleVoice() {
         if (!recognition)
           return alert("Tu navegador no soporta reconocimiento de voz");
 
-        // Si está grabando, cancelar completamente
+        // ESTADO 1: "record" - Iniciar grabación (y parar audio de Scooby si está hablando)
+        if (buttonState === "record") {
+          trackEvent("state_record_to_recording");
+          startRecording();
+          return;
+        }
+
+        // ESTADO 2: "send" - Enviar mensaje grabado
+        if (buttonState === "send" && hasRecordedMessage) {
+          trackEvent("state_send_message");
+          sendMessage(recordedMessage);
+          // El sistema se resetea automáticamente después del envío
+          return;
+        }
+
+        // Si está grabando actualmente, parar y cambiar a modo envío
         if (isRecording) {
-          trackEvent("voice_cancel");
-          cancelAllInteractions();
+          trackEvent("state_stop_recording");
+          recognition.stop();
           return;
         }
 
-        // Si el bot está respondiendo, cancelar todo
-        if (isBotResponding) {
-          trackEvent("bot_cancel");
-          cancelAllInteractions();
-          return;
-        }
-
-        // Iniciar nueva grabación
-        startVoiceRecording();
+        // Por defecto, resetear a estado inicial
+        resetToRecordState();
       }
 
+      // SISTEMA DE 3 ESTADOS: Actualizar botón según estado actual
       function updateVoiceButton() {
         const voiceBtn = document.getElementById("voiceBtn");
         // Limpiar todas las clases de estado
@@ -1726,15 +1736,13 @@
 
         if (isRecording) {
           voiceBtn.classList.add("recording");
-          voiceBtn.innerHTML = "🛑 Cancelar";
-        } else if (isBotResponding) {
-          voiceBtn.classList.add("recording");
-          voiceBtn.innerHTML = "🛑 Cancelar";
-        } else if (isMicrophoneMuted) {
-          voiceBtn.classList.add("muted");
-          voiceBtn.innerHTML = "🔇 Micrófono Silenciado";
+          voiceBtn.innerHTML = "🛑 Parar Grabación";
+        } else if (buttonState === "send" && hasRecordedMessage) {
+          voiceBtn.innerHTML = "📤 Enviar a Scooby";
+        } else if (buttonState === "record") {
+          voiceBtn.innerHTML = "🎤 Grabar Mensaje";
         } else {
-          voiceBtn.innerHTML = "🎤 Hablar";
+          voiceBtn.innerHTML = "🎤 Grabar";
         }
       }
 
@@ -1754,16 +1762,14 @@
           .trim();
       }
 
+      // NUEVO SISTEMA: Función de TTS que termina limpiamente
       function speakText(text) {
         if (!synth || isCancelling) return;
         synth.cancel();
-        
-        // MUTE AGRESIVO: Asegurar que micrófono esté completamente silenciado
-        muteMicrophone();
-        
+
         // Limpiar el texto para TTS pero mantener original en pantalla
         const cleanText = cleanTextForTTS(text);
-        
+
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = "es-ES";
         utterance.rate = 1.0;
@@ -1772,34 +1778,26 @@
           .getVoices()
           .find((voice) => voice.lang.includes("es"));
         if (spanishVoice) utterance.voice = spanishVoice;
-        
+
         utterance.onstart = () => {
           if (!isCancelling) {
             animateScooby(true);
             startMouthAnimation();
             trackEvent("tts_start");
-            
-            // DOBLE MUTE: Asegurar otra vez que esté silenciado
-            muteMicrophone();
           }
         };
-        
+
         utterance.onend = () => {
           if (!isCancelling) {
             stopMouthAnimation();
             animateScooby(false);
-            isBotResponding = false;
             trackEvent("tts_end");
 
-            // Esperar 2 segundos extra antes de reactivar micrófono
-            setTimeout(() => {
-              if (!isCancelling) {
-                unmuteMicrophone();
-              }
-            }, 2000);
+            // SISTEMA DE 3 ESTADOS: Resetear a estado inicial tras respuesta
+            resetToRecordState();
           }
         };
-        
+
         synth.speak(utterance);
       }
 
