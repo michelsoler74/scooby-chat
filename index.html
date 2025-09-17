@@ -898,7 +898,8 @@
             <div>
               ¡Hola! Soy Scooby 🐕
               <br><br>
-              🎤 <strong>Grabar</strong> → 📤 <strong>Enviar</strong>
+              🎤 <strong>Voz:</strong> Solo pulsa "Grabar" (se envía automáticamente)
+              <br>📝 <strong>Texto:</strong> Escribe y pulsa "Enviar"
               <br><br>
               ¿En qué te ayudo? 📚✨
             </div>
@@ -1392,7 +1393,7 @@
 
         // Reproducir mensaje de bienvenida por voz después de un pequeño delay
         setTimeout(() => {
-          const welcomeMessage = "¡Hola! Soy Scooby. Pulsa Grabar para hablar conmigo. ¿En qué te ayudo?";
+          const welcomeMessage = "¡Hola! Soy Scooby. Para hablar, solo pulsa Grabar y yo me encargo del resto. ¿En qué te ayudo?";
           speakText(welcomeMessage);
         }, 1000);
       };
@@ -1676,9 +1677,17 @@
             updateVoiceButton();
             trackEvent("stt_end");
 
-            // SIMPLE: Solo mostrar resultado si hay mensaje
+            // AUTO-ENVÍO: Si hay mensaje de voz, enviarlo automáticamente
             if (hasRecordedMessage && !isBotResponding && !isCancelling) {
-              addMessage("sistema", "✅ Mensaje grabado. Usa 'Enviar 📤' para mandarlo");
+              addMessage("sistema", "✅ Mensaje grabado. Enviando automáticamente...");
+
+              // Auto-envío después de un breve delay para que se vea el mensaje
+              setTimeout(() => {
+                if (hasRecordedMessage && recordedMessage.trim()) {
+                  sendMessage(recordedMessage);
+                }
+              }, 500);
+
             } else if (!hasRecordedMessage && !isBotResponding && !isCancelling) {
               addMessage("sistema", "🎤 No se detectó mensaje. Intenta de nuevo.");
             }
