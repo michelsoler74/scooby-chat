@@ -898,7 +898,7 @@
             <div>
               ¡Hola! Soy Scooby 🐕
               <br><br>
-              🎤 <strong>Grabar</strong> → ⏹️ <strong>Parar</strong> → 📤 <strong>Enviar</strong>
+              🎤 <strong>Grabar</strong> → 📤 <strong>Enviar</strong>
               <br><br>
               ¿En qué te ayudo? 📚✨
             </div>
@@ -922,16 +922,9 @@
             <button
               class="control-btn voice-btn"
               id="voiceBtn"
-              onclick="startVoiceRecording()"
+              onclick="toggleVoiceRecording()"
             >
               🎤 Grabar
-            </button>
-            <button
-              class="control-btn stop-btn"
-              id="stopBtn"
-              onclick="stopCurrentInteraction()"
-            >
-              ⏹️ Parar
             </button>
             <button class="control-btn clear-btn" onclick="clearChat()">
               🧹 Limpiar
@@ -1374,7 +1367,7 @@
 
         // Reproducir mensaje de bienvenida por voz después de un pequeño delay
         setTimeout(() => {
-          const welcomeMessage = "¡Hola! Soy Scooby. Usa Grabar para hablar conmigo. ¿En qué te ayudo?";
+          const welcomeMessage = "¡Hola! Soy Scooby. Pulsa Grabar para hablar conmigo. ¿En qué te ayudo?";
           speakText(welcomeMessage);
         }, 1000);
       };
@@ -1650,54 +1643,51 @@
       }
 
       // Función para iniciar grabación de voz
-      function startVoiceRecording() {
-        if (!recognition)
+      // Función simplificada - IGUAL que tu App.jsx que funciona
+      function toggleVoiceRecording() {
+        if (!recognition) {
           return alert("Tu navegador no soporta reconocimiento de voz");
+        }
 
-        // Si ya está grabando, no hacer nada
         if (isRecording) {
-          addMessage("sistema", "🎤 Ya estoy grabando. Usa 'Parar ⏹️' para terminar la grabación");
+          // Si está grabando, parar (automático como tu app)
+          recognition.stop();
           return;
         }
 
-        // Iniciar grabación
-        trackEvent("start_recording");
-        startRecording();
-      }
-
-      // Función para parar cualquier interacción actual
-      function stopCurrentInteraction() {
-        // Si está grabando, parar grabación
-        if (isRecording) {
-          trackEvent("stop_recording");
-            recognition.stop();
-          isRecording = false;
+        // Si no está grabando, iniciar EXACTAMENTE como tu App.jsx línea 217
+        // SpeechRecognition.startListening({ continuous: false, language: 'es-ES' })
+        try {
+          recognition.start();
+          isRecording = true;
           updateVoiceButton();
-          addMessage("sistema", "⏹️ Grabación parada. Usa 'Enviar 📤' si quieres mandar el mensaje");
-          return;
-        }
 
-        // Si Scooby está hablando, pararlo
-        if (isBotResponding) {
-          stopScoobyAudioOnly();
-          addMessage("sistema", "⏹️ Scooby parado. ¿En qué más te puedo ayudar?");
-          return;
-        }
+          // Limpiar input para nueva grabación
+          document.getElementById("messageInput").value = "";
+          recordedMessage = "";
+          hasRecordedMessage = false;
 
-        // Si no hay nada que parar
-        addMessage("sistema", "⏹️ No hay nada que parar en este momento");
+          addMessage("sistema", "🎤 Grabando...");
+
+        } catch (error) {
+          console.error("Error al iniciar grabación:", error);
+          addMessage("sistema", "❌ Error al iniciar grabación");
+        }
       }
 
-      // Actualizar estado visual (sin cambiar texto del botón)
+      // Actualizar botón como tu App.jsx línea 217-219
       function updateVoiceButton() {
         const voiceBtn = document.getElementById("voiceBtn");
-        // Limpiar todas las clases de estado
         voiceBtn.classList.remove("recording", "muted");
 
         if (isRecording) {
           voiceBtn.classList.add("recording");
+          voiceBtn.innerHTML = "⏹️ Parar";
+          voiceBtn.disabled = false;
+        } else {
+          voiceBtn.innerHTML = "🎤 Grabar";
+          voiceBtn.disabled = false;
         }
-        // El texto del botón permanece siempre como "🎤 Grabar"
       }
 
       // Función para limpiar texto para TTS
