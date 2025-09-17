@@ -895,10 +895,10 @@
               <br><br>
               🎤 <strong>¡NUEVO SISTEMA!</strong> Para hablar conmigo:
               <br>• 1️⃣ Pulsa "🎤 Grabar Mensaje"
-              <br>• 2️⃣ Habla tu pregunta
-              <br>• 3️⃣ Pulsa "📤 Enviar a Scooby"
+              <br>• 2️⃣ Habla tu pregunta (¡toma todo el tiempo que necesites!)
+              <br>• 3️⃣ Pulsa "📤 Enviar a Scooby" cuando termines
               <br><br>
-              💡 <strong>¡Puedes interrumpirme!</strong> Si estoy hablando y quieres hacer otra pregunta, simplemente pulsa "🎤 Grabar Mensaje" y mi audio se parará automáticamente.
+              💡 <strong>¡Sin límite de tiempo!</strong> Puedes hablar, parar a pensar, seguir hablando... El micrófono solo se detiene cuando TÚ presiones el botón de enviar.
               <br><br>
               ¡También puedes escribir normalmente! ¿En qué te ayudo? 📚✨
             </div>
@@ -1325,11 +1325,7 @@
           recognition.stop();
         }
 
-        // Limpiar timeouts
-        if (speechTimeout) {
-          clearTimeout(speechTimeout);
-          speechTimeout = null;
-        }
+        // Sin timeouts automáticos - el usuario controla la grabación
 
         // Parar síntesis de voz
         if (synth) {
@@ -1573,28 +1569,14 @@
           recognition.onstart = () => {
             speechStartTime = Date.now();
             trackEvent("stt_start");
-            // Timeout de 15 segundos de silencio antes de parar (más tiempo para niños)
-            speechTimeout = setTimeout(() => {
-              if (isRecording && !isBotResponding) {
-                recognition.stop();
-                addMessage(
-                  "sistema",
-                  "🎤 Te escucho... Tómate tu tiempo para hablar"
-                );
-                trackEvent("stt_timeout");
-              }
-            }, 15000);
+            // SIN TIMEOUT AUTOMÁTICO - Solo se detiene con el botón enviar
           };
 
           recognition.onresult = (event) => {
             // Si se está cancelando, no procesar resultados
             if (isCancelling) return;
 
-            // Limpiar timeout cada vez que hay resultado
-            if (speechTimeout) {
-              clearTimeout(speechTimeout);
-              speechTimeout = null;
-            }
+            // El usuario controla la grabación - sin timeouts automáticos
 
             let finalTranscript = "";
             let interimTranscript = "";
@@ -1609,54 +1591,25 @@
               }
             }
 
-            // SISTEMA DE 3 ESTADOS: Guardar transcript y cambiar a modo envío
+            // SISTEMA DE 3 ESTADOS: Guardar transcript y continuar grabando
             if (finalTranscript && !isCancelling) {
               recordedMessage = finalTranscript;
               document.getElementById("messageInput").value = finalTranscript;
-              // Parar grabación y cambiar a modo envío
-              recognition.stop();
-              isRecording = false;
-              buttonState = "send";
               hasRecordedMessage = true;
 
-              addMessage("sistema", "✅ Mensaje grabado. Pulsa 📤 Enviar para mandarlo a Scooby");
-              updateVoiceButton();
+              // NO parar grabación automáticamente - el usuario decide cuándo enviar
+              addMessage("sistema", "💬 Te escucho... Sigue hablando o pulsa 📤 Enviar cuando termines");
 
             } else if (interimTranscript && !isCancelling) {
               // Mostrar texto provisional en el input
               document.getElementById("messageInput").value = interimTranscript;
             }
 
-            // Timeout para finalizar grabación si no hay más input
-            if (isRecording && !isCancelling) {
-              speechTimeout = setTimeout(() => {
-                if (isRecording && !isCancelling) {
-                  const currentText = document.getElementById("messageInput").value.trim();
-                  if (currentText) {
-                    recordedMessage = currentText;
-                    recognition.stop();
-                    isRecording = false;
-                    buttonState = "send";
-                    hasRecordedMessage = true;
-                    addMessage("sistema", "✅ Grabación finalizada. Pulsa 📤 Enviar");
-                    updateVoiceButton();
-                  } else {
-                    recognition.stop();
-                    isRecording = false;
-                    resetToRecordState();
-                    addMessage("sistema", "🎤 No se escuchó nada. Intenta grabar de nuevo.");
-                  }
-                }
-              }, 3000);
-            }
+            // SIN TIMEOUT AUTOMÁTICO - El usuario controla cuándo enviar con el botón
           };
 
           recognition.onerror = (event) => {
             console.error("Error de reconocimiento:", event.error);
-            if (speechTimeout) {
-              clearTimeout(speechTimeout);
-              speechTimeout = null;
-            }
             trackEvent("stt_error", { error: event.error });
 
             if (event.error === "no-speech") {
@@ -1681,10 +1634,6 @@
           };
 
           recognition.onend = () => {
-            if (speechTimeout) {
-              clearTimeout(speechTimeout);
-              speechTimeout = null;
-            }
             isRecording = false;
             updateVoiceButton();
             trackEvent("stt_end");
@@ -1721,6 +1670,15 @@
         if (isRecording) {
           trackEvent("state_stop_recording");
           recognition.stop();
+          isRecording = false;
+          if (hasRecordedMessage) {
+            buttonState = "send";
+            addMessage("sistema", "✅ Grabación parada. Pulsa 📤 Enviar para mandar el mensaje");
+          } else {
+            resetToRecordState();
+            addMessage("sistema", "🎤 Grabación cancelada. No se escuchó mensaje.");
+          }
+          updateVoiceButton();
           return;
         }
 
