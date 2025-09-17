@@ -517,9 +517,9 @@
 
         .avatar-section {
           width: 100%;
-          order: -1;
+          order: 1; /* Cambiar de -1 a 1 para ponerlo abajo */
           flex-shrink: 0;
-          max-height: 80px;
+          max-height: 120px; /* Más alto para darle protagonismo */
           overflow: hidden;
         }
 
@@ -527,9 +527,9 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 5px;
-          padding: 5px;
-          min-height: 60px;
+          gap: 8px;
+          padding: 8px;
+          min-height: 100px; /* Más alto para darle protagonismo */
         }
 
         .status-left, .status-right {
@@ -565,8 +565,8 @@
         }
 
         .scooby-avatar {
-          width: 100px;
-          height: 100px;
+          width: 140px; /* Más grande para protagonismo */
+          height: 140px;
           flex-shrink: 0;
           display: block !important;
           visibility: visible !important;
@@ -574,8 +574,8 @@
         }
 
         .scooby-avatar svg {
-          width: 100px !important;
-          height: 100px !important;
+          width: 140px !important; /* Más grande para protagonismo */
+          height: 140px !important;
           display: block !important;
         }
 
@@ -595,7 +595,7 @@
         .chat-section {
           flex: 1;
           min-height: 0;
-          max-height: calc(100vh - 280px);
+          max-height: calc(100vh - 320px); /* Ajustado para avatar más grande */
         }
 
         .chat-messages {
@@ -717,16 +717,16 @@
         }
 
         .scooby-avatar {
-          width: 80px;
-          height: 80px;
+          width: 110px; /* Más grande para protagonismo en móvil pequeño */
+          height: 110px;
           display: block !important;
           visibility: visible !important;
           opacity: 1 !important;
         }
 
         .scooby-avatar svg {
-          width: 80px !important;
-          height: 80px !important;
+          width: 110px !important; /* Más grande para protagonismo en móvil pequeño */
+          height: 110px !important;
           display: block !important;
         }
 
@@ -737,7 +737,7 @@
         }
 
         .chat-section {
-          max-height: calc(100vh - 260px);
+          max-height: calc(100vh - 280px); /* Ajustado para avatar más grande */
           flex: 1;
         }
 
