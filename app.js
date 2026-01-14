@@ -97,23 +97,36 @@ function stopMouthAnimation() {
   setMouthShape(0);
 }
 
+function updateStatus(type, text) {
+  const badge = document.getElementById("statusBadge");
+  const dot = badge?.querySelector(".status-dot");
+  const statusLine = document.getElementById("scoobyStatus");
+
+  if (!statusLine || !dot) return;
+
+  // Actualizar texto
+  statusLine.textContent = text;
+
+  // Actualizar color del punto
+  dot.className = "status-dot " + type;
+}
+
 function animateScooby(isTalking) {
   const avatar = document.getElementById("scoobyAvatar");
   const thoughtBubble = document.getElementById("thoughtBubble");
-  const statusLine = document.getElementById("scoobyStatus");
   const leftEye = document.getElementById("leftEyeOuter");
   const rightEye = document.getElementById("rightEyeOuter");
 
   if (isTalking) {
     avatar?.classList.add("talking");
     thoughtBubble?.classList.add("show");
-    if (statusLine) statusLine.textContent = "💬 Hablando...";
+    updateStatus("thinking", "Hablando...");
     leftEye?.setAttribute("filter", "url(#glow)");
     rightEye?.setAttribute("filter", "url(#glow)");
   } else {
     avatar?.classList.remove("talking");
     thoughtBubble?.classList.remove("show");
-    if (statusLine) statusLine.textContent = "🟢 Listo para ayudarte";
+    updateStatus("ready", "Listo");
     leftEye?.removeAttribute("filter");
     rightEye?.removeAttribute("filter");
   }
@@ -197,6 +210,7 @@ async function sendMessage(message = null) {
   if (input) input.value = "";
   
   showTypingIndicator();
+  updateStatus("thinking", "Pensando...");
   animateScooby(true);
   state.isBotResponding = true;
 
@@ -256,6 +270,7 @@ function initializeSpeechRecognition() {
   recognition.onstart = () => {
     state.isRecording = true;
     updateVoiceButton();
+    updateStatus("recording", "Escuchando...");
     addMessage("sistema", "🎤 Te escucho...");
   };
 

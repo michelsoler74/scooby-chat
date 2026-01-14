@@ -262,6 +262,52 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative; /* Necesario para el badge flotante */
+}
+
+/* Badge de Estado Flotante Premium */
+.status-badge {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  z-index: 10;
+  pointer-events: none;
+  transition: var(--transition);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ccc;
+  transition: var(--transition);
+}
+
+.status-dot.ready { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.status-dot.recording { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: pulse-red 1.5s infinite; }
+.status-dot.thinking { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+
+.status-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes pulse-red {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .thought-bubble {
@@ -372,6 +418,16 @@ body {
     box-shadow: none;
     height: 100%;
     width: 100%;
+  }
+
+  .status-badge {
+    bottom: 10px;
+    right: 10px;
+    padding: 4px 10px;
+  }
+
+  .status-text {
+    font-size: 0.65rem;
   }
 
   .avatar-center {
