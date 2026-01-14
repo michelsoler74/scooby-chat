@@ -1,0 +1,417 @@
+/**
+ * Scooby Chat - Lógica Principal (app.js)
+ * Sistema de gestión de estado y comunicación con n8n
+ */
+
+// ========== CONFIGURACIÓN ==========
+const IS_BETA_MODE = true;
+const BETA_WEBHOOK_URLS = [
+  "https://n8n.michel-ia.eu/webhook/scooby-beta-1",
+  "https://n8n.michel-ia.eu/webhook/scooby-beta-2",
+  "https://n8n.michel-ia.eu/webhook/scooby-beta-3"
+];
+
+const config = {
+  userId: localStorage.getItem("scooby_user_id") || `user_${Date.now()}`,
+  conversationId: localStorage.getItem("scooby_conversation_id") || `conv_${Date.now()}`,
+  isBetaMode: IS_BETA_MODE,
+  webhookUrl: ""
+};
+
+// ========== ESTADO DE LA APP ==========
+const state = {
+  isRecording: false,
+  isBotResponding: false,
+  isCancelling: false,
+  hasRecordedMessage: false,
+  recordedMessage: "",
+  mouthAnimationTimer: null,
+  mouthAnimationPhase: 0,
+  messageHistory: []
+};
+
+// ========== UTILIDADES ==========
+
+function getUserConsistentUrl(userId) {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    const char = userId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const index = Math.abs(hash) % BETA_WEBHOOK_URLS.length;
+  return BETA_WEBHOOK_URLS[index];
+}
+
+function trackEvent(event, extra = {}) {
+  console.log(`[Telemetry] ${event}`, extra);
+}
+
+function cleanTextForTTS(text) {
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+    .replace(/[!]{2,}/g, '!')
+    .replace(/[?]{2,}/g, '?')
+    .replace(/[*•→←↑↓]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ========== UI & ANIMACIONES ==========
+
+function setMouthShape(phase) {
+  const mouth = document.getElementById("mouthPath");
+  if (!mouth) return;
+  const shapes = [
+    "M 190 295 L 210 295",            // Reposo
+    "M 185 295 Q 200 305 215 295",    // Semi-abierta
+    "M 180 295 Q 200 312 220 295"     // Abierta
+  ];
+  mouth.setAttribute("d", shapes[phase % 3]);
+}
+
+function startMouthAnimation() {
+  if (state.mouthAnimationTimer) return;
+  state.mouthAnimationPhase = 0;
+  state.mouthAnimationTimer = setInterval(() => {
+    state.mouthAnimationPhase = (state.mouthAnimationPhase + 1) % 3;
+    setMouthShape(state.mouthAnimationPhase);
+  }, 140);
+}
+
+function stopMouthAnimation() {
+  if (state.mouthAnimationTimer) {
+    clearInterval(state.mouthAnimationTimer);
+    state.mouthAnimationTimer = null;
+  }
+  setMouthShape(0);
+}
+
+function animateScooby(isTalking) {
+  const avatar = document.getElementById("scoobyAvatar");
+  const thoughtBubble = document.getElementById("thoughtBubble");
+  const statusLine = document.getElementById("scoobyStatus");
+  const leftEye = document.getElementById("leftEyeOuter");
+  const rightEye = document.getElementById("rightEyeOuter");
+
+  if (isTalking) {
+    avatar?.classList.add("talking");
+    thoughtBubble?.classList.add("show");
+    if (statusLine) statusLine.textContent = "💬 Hablando...";
+    leftEye?.setAttribute("filter", "url(#glow)");
+    rightEye?.setAttribute("filter", "url(#glow)");
+  } else {
+    avatar?.classList.remove("talking");
+    thoughtBubble?.classList.remove("show");
+    if (statusLine) statusLine.textContent = "🟢 Listo para ayudarte";
+    leftEye?.removeAttribute("filter");
+    rightEye?.removeAttribute("filter");
+  }
+}
+
+// ========== GESTIÓN DE MENSAJES ==========
+
+function addMessage(sender, text) {
+  const chatMessages = document.getElementById("chatMessages");
+  if (!chatMessages) return;
+
+  const messageDiv = document.createElement("div");
+  const time = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+  messageDiv.className = sender === "user" ? "user-message message" : "scooby-message message";
+  if (sender === "sistema") messageDiv.style.opacity = "0.7";
+
+  messageDiv.innerHTML = `<div>${text}</div><div class="message-time">${time}</div>`;
+  chatMessages.appendChild(messageDiv);
+
+  setTimeout(() => {
+    chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: "smooth" });
+  }, 100);
+
+  state.messageHistory.push({ sender, text, time });
+}
+
+function showTypingIndicator() {
+  const chatMessages = document.getElementById("chatMessages");
+  if (!chatMessages) return;
+  const typingDiv = document.createElement("div");
+  typingDiv.id = "typingIndicator";
+  typingDiv.className = "scooby-message message";
+  typingDiv.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  chatMessages.appendChild(typingDiv);
+  chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: "smooth" });
+}
+
+function hideTypingIndicator() {
+  document.getElementById("typingIndicator")?.remove();
+}
+
+function updateSuggestions(suggestions) {
+  const suggestionsDiv = document.getElementById("suggestions");
+  if (!suggestionsDiv) return;
+  suggestionsDiv.innerHTML = "";
+  suggestions.forEach(suggestion => {
+    const chip = document.createElement("div");
+    chip.className = "suggestion-chip";
+    chip.textContent = suggestion;
+    chip.onclick = () => {
+      document.getElementById("messageInput").value = suggestion;
+      sendMessage();
+    };
+    suggestionsDiv.appendChild(chip);
+  });
+}
+
+// ========== COMUNICACIÓN API ==========
+
+async function sendMessage(message = null) {
+  if (state.isCancelling) return;
+
+  if (state.isRecording) {
+    recognition?.stop();
+    state.isRecording = false;
+  }
+
+  const input = document.getElementById("messageInput");
+  const text = message || input?.value.trim();
+
+  if (!text) return;
+
+  if (!config.webhookUrl) {
+    alert("Por favor, configura la URL del webhook.");
+    toggleConfig();
+    return;
+  }
+
+  addMessage("user", text);
+  if (input) input.value = "";
+  
+  showTypingIndicator();
+  animateScooby(true);
+  state.isBotResponding = true;
+
+  try {
+    const response = await fetch(config.webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        user_id: config.userId,
+        userId: config.userId,
+        conversationId: config.conversationId,
+        betaMode: config.isBetaMode
+      })
+    });
+
+    if (!response.ok) throw new Error("Error en el servidor");
+
+    const data = await response.json();
+    if (state.isCancelling) return;
+
+    hideTypingIndicator();
+    animateScooby(false);
+
+    const responseText = data.output || data.respuesta;
+    if (responseText) {
+      addMessage("scooby", responseText);
+      speakText(responseText);
+      if (data.suggestions) updateSuggestions(data.suggestions);
+    } else {
+      addMessage("scooby", "¡Ruh-roh! No pude entenderte. ¿Repites?");
+      resetToRecordState();
+    }
+  } catch (error) {
+    console.error("API Error:", error);
+    hideTypingIndicator();
+    animateScooby(false);
+    addMessage("scooby", "¡Ups! Problemas de conexión. ¿Revisas el webhook?");
+    resetToRecordState();
+  }
+}
+
+// ========== VOZ Y SÍNTESIS ==========
+
+const synth = window.speechSynthesis;
+let recognition = null;
+
+function initializeSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  recognition = new SpeechRecognition();
+  recognition.lang = "es-ES";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    state.isRecording = true;
+    updateVoiceButton();
+    addMessage("sistema", "🎤 Te escucho...");
+  };
+
+  recognition.onresult = (event) => {
+    if (state.isCancelling) return;
+    const transcript = event.results[0][0].transcript.trim();
+    if (transcript) {
+      state.recordedMessage = transcript;
+      state.hasRecordedMessage = true;
+      document.getElementById("messageInput").value = transcript;
+    }
+  };
+
+  recognition.onend = () => {
+    state.isRecording = false;
+    updateVoiceButton();
+    if (state.hasRecordedMessage && !state.isBotResponding && !state.isCancelling) {
+      setTimeout(() => sendMessage(state.recordedMessage), 500);
+    }
+  };
+
+  recognition.onerror = (e) => {
+    console.error("STT Error:", e.error);
+    resetToRecordState();
+  };
+}
+
+function speakText(text) {
+  if (!synth || state.isCancelling) return;
+  synth.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(cleanTextForTTS(text));
+  utterance.lang = "es-ES";
+  utterance.rate = 1.0;
+  utterance.pitch = 1.2;
+
+  const voices = synth.getVoices();
+  const spanishVoice = voices.find(v => v.lang.includes("es"));
+  if (spanishVoice) utterance.voice = spanishVoice;
+
+  utterance.onstart = () => {
+    if (!state.isCancelling) {
+      animateScooby(true);
+      startMouthAnimation();
+    }
+  };
+
+  utterance.onend = () => {
+    stopMouthAnimation();
+    animateScooby(false);
+    resetToRecordState();
+  };
+
+  synth.speak(utterance);
+}
+
+// ========== ACCIONES DE CONTROL ==========
+
+function resetToRecordState() {
+  state.recordedMessage = "";
+  state.hasRecordedMessage = false;
+  state.isBotResponding = false;
+  if (state.isRecording) recognition?.stop();
+  updateVoiceButton();
+}
+
+function toggleVoiceRecording() {
+  if (!recognition) return alert("Navegador no soportado");
+  if (state.isRecording) {
+    recognition.stop();
+  } else {
+    if (state.isBotResponding) {
+      synth.cancel();
+      stopMouthAnimation();
+      animateScooby(false);
+      state.isBotResponding = false;
+    }
+    recognition.start();
+  }
+}
+
+function updateVoiceButton() {
+  const btn = document.getElementById("voiceBtn");
+  if (!btn) return;
+  btn.classList.toggle("recording", state.isRecording);
+  btn.innerHTML = state.isRecording ? "⏹️ Parar" : "🎤 Grabar";
+}
+
+function cancelAllInteractions() {
+  state.isCancelling = true;
+  synth.cancel();
+  recognition?.stop();
+  stopMouthAnimation();
+  animateScooby(false);
+  
+  state.isRecording = false;
+  state.isBotResponding = false;
+  setTimeout(() => (state.isCancelling = false), 500);
+  
+  resetToRecordState();
+  addMessage("sistema", "🛑 Interacción cancelada.");
+}
+
+function toggleConfig() {
+  const modal = document.getElementById("configModal");
+  modal?.classList.toggle("show");
+  document.getElementById("webhookUrl").value = config.webhookUrl;
+}
+
+function saveConfig() {
+  const url = document.getElementById("webhookUrl").value;
+  if (!url) return alert("Ingresa una URL");
+  config.webhookUrl = url;
+  localStorage.setItem("scooby_webhook_url", url);
+  toggleConfig();
+  addMessage("sistema", "✅ Configuración guardada.");
+}
+
+function clearChat() {
+  document.getElementById("chatMessages").innerHTML = "";
+  addMessage("sistema", "🧹 Chat limpio.");
+  state.messageHistory = [];
+}
+
+// ========== INICIALIZACIÓN ==========
+
+function setupEventListeners() {
+  // Envío de mensajes
+  document.getElementById("sendBtn")?.addEventListener("click", () => sendMessage());
+  document.getElementById("messageInput")?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
+
+  // Botones de control
+  document.getElementById("voiceBtn")?.addEventListener("click", toggleVoiceRecording);
+  document.getElementById("cancelBtn")?.addEventListener("click", cancelAllInteractions);
+  document.getElementById("clearBtn")?.addEventListener("click", clearChat);
+
+  // Modal de configuración
+  document.querySelector(".config-btn")?.addEventListener("click", toggleConfig);
+  document.getElementById("saveConfigBtn")?.addEventListener("click", saveConfig);
+  document.getElementById("cancelConfigBtn")?.addEventListener("click", toggleConfig);
+}
+
+window.onload = () => {
+  // Setup inicial de config
+  if (config.isBetaMode) {
+    config.webhookUrl = getUserConsistentUrl(config.userId);
+    const betaIndicator = document.getElementById("betaIndicator");
+    if (betaIndicator) betaIndicator.classList.remove("hidden");
+    addMessage("sistema", "🚀 Modo Beta activado.");
+  } else {
+    config.webhookUrl = localStorage.getItem("scooby_webhook_url") || "";
+    if (!config.webhookUrl) toggleConfig();
+  }
+
+  localStorage.setItem("scooby_user_id", config.userId);
+  localStorage.setItem("scooby_conversation_id", config.conversationId);
+
+  initializeSpeechRecognition();
+  setupEventListeners();
+  
+  // Bienvenida inicial
+  setTimeout(() => {
+    const welcome = "¡Hola! Soy Scooby, tu amigo mentor. ¿Qué quieres aprender hoy?";
+    speakText(welcome);
+    addMessage("scooby", welcome);
+  }, 1000);
+};
