@@ -48,11 +48,21 @@ function trackEvent(event, extra = {}) {
 }
 
 function cleanTextForTTS(text) {
+  if (!text) return "";
+  
   return text
-    .replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
-    .replace(/[!]{2,}/g, '!')
-    .replace(/[?]{2,}/g, '?')
-    .replace(/[*•→←↑↓]/g, '')
+    // 1. Eliminar URLs (http, https, www)
+    .replace(/https?:\/\/\S+|www\.\S+/gi, '')
+    // 2. Eliminar imágenes markdown y convertir enlaces [texto](url) a solo "texto"
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    // 3. Eliminar símbolos de formato Markdown y otros caracteres especiales
+    .replace(/[*#_~`•→←↑↓]/g, '')
+    // 4. Eliminar Emojis y símbolos pictográficos exhaustivamente
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+    // 5. Normalizar puntuación excesiva (manteniendo una para la pausa)
+    .replace(/([!?])\1+/g, '$1')
+    // 6. Limpieza final de espacios
     .replace(/\s+/g, ' ')
     .trim();
 }
