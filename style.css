@@ -53,7 +53,7 @@ body {
   font-family: 'Outfit', sans-serif;
   background: var(--bg-gradient);
   color: var(--text-main);
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   line-height: 1.6;
@@ -106,7 +106,7 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-  height: calc(100vh - 80px); /* Ajuste basado en la altura del header aprox */
+  height: calc(100dvh - 80px); /* Ajuste basado en la altura del header aprox */
   overflow: hidden;
 }
 
@@ -350,15 +350,15 @@ body {
     flex-direction: column;
     padding: 0.5rem;
     gap: 0.5rem;
-    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
   /* Scooby Arriba */
   .avatar-section {
     width: 100% !important;
-    height: 150px !important;
-    flex: 0 0 150px !important;
+    height: 130px !important; /* Un poco más pequeño aún */
+    flex: 0 0 130px !important;
     order: -1;
     display: flex;
     justify-content: center;
@@ -416,30 +416,31 @@ body {
 
   /* Controles Abajo */
   .input-section {
-    padding: 0.75rem;
+    padding: 0.6rem 0.75rem;
     background: rgba(255, 255, 255, 0.6);
     border-top: 1px solid var(--glass-border);
     flex: 0 0 auto;
+    flex-shrink: 0; /* PROHIBIDO ocultar esta sección */
   }
 
   .input-wrapper {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
   }
 
   .message-input {
-    padding: 0.6rem 1rem;
+    padding: 0.5rem 0.8rem;
     font-size: 0.9rem;
   }
 
   .control-buttons {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.25rem;
   }
 
   .btn {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8rem;
-    border-radius: 10px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 8px;
     flex: 1;
   }
 }
