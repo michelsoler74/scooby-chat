@@ -336,12 +336,110 @@ body {
 }
 
 /* Mobile Responsive */
-@media (max-width: 900px) {
-  .main-container {
-    flex-direction: column-reverse;
+@media (max-width: 768px) {
+  .header {
     padding: 1rem;
+    flex: 0 0 auto;
   }
+
+  .header h1 {
+    font-size: 1.3rem;
+  }
+
+  .main-container {
+    flex-direction: column;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Scooby Arriba */
   .avatar-section {
+    width: 100% !important;
+    height: 150px !important;
+    flex: 0 0 150px !important;
+    order: -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .avatar-container {
+    padding: 0.25rem !important;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: 100%;
     width: 100%;
+  }
+
+  .avatar-center {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .scooby-avatar {
+    height: 100%;
+    width: auto;
+  }
+
+  .scooby-avatar svg {
+    height: 100%;
+    width: auto;
+  }
+
+  .status-info {
+    display: none; /* Ahorrar espacio vertical */
+  }
+
+  .thought-bubble {
+    display: none;
+  }
+
+  /* Chat en el Medio */
+  .chat-section {
+    flex: 1;
+    height: auto;
+    min-height: 0; /* Importante para flex-grow con scroll */
+    margin: 0;
+    border-radius: 16px;
+  }
+
+  .chat-messages {
+    padding: 0.75rem;
+    flex: 1;
+  }
+
+  /* Controles Abajo */
+  .input-section {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.6);
+    border-top: 1px solid var(--glass-border);
+    flex: 0 0 auto;
+  }
+
+  .input-wrapper {
+    margin-bottom: 0.5rem;
+  }
+
+  .message-input {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .control-buttons {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 10px;
+    flex: 1;
   }
 }
