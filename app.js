@@ -146,7 +146,12 @@ function addMessage(sender, text) {
   messageDiv.className = sender === "user" ? "user-message message" : "scooby-message message";
   if (sender === "sistema") messageDiv.style.opacity = "0.7";
 
-  messageDiv.innerHTML = `<div>${text}</div><div class="message-time">${time}</div>`;
+  let displayContent = text;
+  if (sender === "scooby" && typeof marked !== 'undefined') {
+    displayContent = marked.parse(text);
+  }
+
+  messageDiv.innerHTML = `<div class="message-content">${displayContent}</div><div class="message-time">${time}</div>`;
   chatMessages.appendChild(messageDiv);
 
   setTimeout(() => {
@@ -178,7 +183,13 @@ function loadHistory() {
         const messageDiv = document.createElement("div");
         messageDiv.className = msg.sender === "user" ? "user-message message" : "scooby-message message";
         if (msg.sender === "sistema") messageDiv.style.opacity = "0.7";
-        messageDiv.innerHTML = `<div>${msg.text}</div><div class="message-time">${msg.time}</div>`;
+        
+        let displayContent = msg.text;
+        if (msg.sender === "scooby" && typeof marked !== 'undefined') {
+          displayContent = marked.parse(msg.text);
+        }
+        
+        messageDiv.innerHTML = `<div class="message-content">${displayContent}</div><div class="message-time">${msg.time}</div>`;
         chatMessages.appendChild(messageDiv);
       });
       state.messageHistory = history;

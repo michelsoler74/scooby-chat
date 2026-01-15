@@ -183,6 +183,29 @@ body {
   text-align: right;
 }
 
+/* Estilos de Contenido Markdown */
+.message-content {
+  line-height: 1.5;
+}
+
+.message-content p {
+  margin: 5px 0;
+}
+
+.message-content ul, .message-content ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.message-content li {
+  margin-bottom: 4px;
+}
+
+.message-content strong, .message-content b {
+  font-weight: 700;
+  color: inherit;
+}
+
 /* Input Section Modernizada */
 .input-section {
   padding: 1.5rem;
