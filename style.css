@@ -243,6 +243,8 @@ body {
 }
 
 .cancel-btn { background: #f1f5f9; color: #475569; }
+.reset-btn { background: #e0f2fe; color: #0369a1; }
+.reset-btn:hover { background: #bae6fd; }
 
 /* Avatar Section */
 .avatar-section {

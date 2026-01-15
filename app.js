@@ -14,6 +14,8 @@ const BETA_WEBHOOK_URLS = [
 const config = {
   userId: localStorage.getItem("scooby_user_id") || `user_${Date.now()}`,
   conversationId: localStorage.getItem("scooby_conversation_id") || `conv_${Date.now()}`,
+  userName: localStorage.getItem("scooby_user_name") || "",
+  userAge: localStorage.getItem("scooby_user_age") || "",
   isBetaMode: IS_BETA_MODE,
   webhookUrl: ""
 };
@@ -152,6 +154,56 @@ function addMessage(sender, text) {
   }, 100);
 
   state.messageHistory.push({ sender, text, time });
+  if (state.messageHistory.length > 20) {
+    state.messageHistory.shift();
+  }
+  saveHistory();
+}
+
+function saveHistory() {
+  const historyToSave = state.messageHistory.slice(-20);
+  localStorage.setItem("scooby_history", JSON.stringify(historyToSave));
+}
+
+function loadHistory() {
+  const saved = localStorage.getItem("scooby_history");
+  if (saved) {
+    try {
+      const history = JSON.parse(saved);
+      const chatMessages = document.getElementById("chatMessages");
+      if (!chatMessages) return false;
+      
+      chatMessages.innerHTML = "";
+      history.forEach(msg => {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = msg.sender === "user" ? "user-message message" : "scooby-message message";
+        if (msg.sender === "sistema") messageDiv.style.opacity = "0.7";
+        messageDiv.innerHTML = `<div>${msg.text}</div><div class="message-time">${msg.time}</div>`;
+        chatMessages.appendChild(messageDiv);
+      });
+      state.messageHistory = history;
+      
+      setTimeout(() => {
+        chatMessages.scrollTo({ top: chatMessages.scrollHeight });
+      }, 100);
+      return true;
+    } catch (e) {
+      console.error("Error cargando historial:", e);
+      return false;
+    }
+  }
+  return false;
+}
+
+function saveProfile(name, age) {
+  if (name) {
+    config.userName = name;
+    localStorage.setItem("scooby_user_name", name);
+  }
+  if (age) {
+    config.userAge = age;
+    localStorage.setItem("scooby_user_age", age);
+  }
 }
 
 function showTypingIndicator() {
@@ -222,6 +274,8 @@ async function sendMessage(message = null) {
         message: text,
         user_id: config.userId,
         userId: config.userId,
+        userName: config.userName,
+        userAge: config.userAge,
         conversationId: config.conversationId,
         betaMode: config.isBetaMode
       })
@@ -237,6 +291,10 @@ async function sendMessage(message = null) {
 
     const responseText = data.output || data.respuesta;
     if (responseText) {
+      // Guardar perfil si el backend devuelve datos extraídos
+      if (data.userName || data.userAge) {
+        saveProfile(data.userName, data.userAge);
+      }
       addMessage("scooby", responseText);
       speakText(responseText);
       if (data.suggestions) updateSuggestions(data.suggestions);
@@ -374,6 +432,17 @@ function cancelAllInteractions() {
   addMessage("sistema", "🛑 Interacción cancelada.");
 }
 
+function resetEverything() {
+  if (confirm("¿Estás seguro de que quieres borrar toda la memoria y reiniciar? No podrás recuperar tus datos.")) {
+    localStorage.removeItem("scooby_user_name");
+    localStorage.removeItem("scooby_user_age");
+    localStorage.removeItem("scooby_history");
+    localStorage.removeItem("scooby_conversation_id");
+    // Mantenemos el webhook url y user id opcionalmente, pero borramos perfil y chat
+    location.reload();
+  }
+}
+
 function toggleConfig() {
   const modal = document.getElementById("configModal");
   modal?.classList.toggle("show");
@@ -408,6 +477,7 @@ function setupEventListeners() {
   document.getElementById("voiceBtn")?.addEventListener("click", toggleVoiceRecording);
   document.getElementById("cancelBtn")?.addEventListener("click", cancelAllInteractions);
   document.getElementById("clearBtn")?.addEventListener("click", clearChat);
+  document.getElementById("resetBtn")?.addEventListener("click", resetEverything);
 
   // Modal de configuración
   document.querySelector(".config-btn")?.addEventListener("click", toggleConfig);
@@ -433,10 +503,22 @@ window.onload = () => {
   initializeSpeechRecognition();
   setupEventListeners();
   
-  // Bienvenida inicial
+  // Bienvenida inicial o carga de historial
   setTimeout(() => {
-    const welcome = "¡Hola! Soy Scooby, tu amigo mentor. ¿Qué quieres aprender hoy?";
-    speakText(welcome);
-    addMessage("scooby", welcome);
+    const hasHistory = loadHistory();
+    
+    if (!hasHistory) {
+      let welcome = "";
+      if (config.userName) {
+        welcome = `¡Hola de nuevo, ${config.userName}! 🐕 Me alegra verte. ¿Seguimos aprendiendo?`;
+        // n8n se encargará de ajustar la personalidad basándose en config.userAge enviado en el payload
+      } else {
+        welcome = "¡Hola! Soy Scooby, tu amigo mentor. ¿Cómo te llamas y cuántos años tienes? Para empezar nuestra aventura.";
+      }
+      speakText(welcome);
+      addMessage("scooby", welcome);
+    } else {
+      updateStatus("ready", "Conversación recuperada");
+    }
   }, 1000);
 };
