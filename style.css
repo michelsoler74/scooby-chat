@@ -126,6 +126,34 @@ body {
   max-height: 100%;
 }
 
+.scooby-avatar.is-speaking {
+    animation: speaking-bounce 0.4s ease infinite;
+}
+
+.scooby-avatar.is-thinking {
+    animation: thinking-float 2.5s ease-in-out infinite;
+}
+
+.scooby-avatar.is-listening {
+    animation: listening-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes speaking-bounce {
+    0%, 100% { transform: scale(1); }
+    33% { transform: scale(1.03, 0.97); }
+    66% { transform: scale(0.97, 1.03); }
+}
+
+@keyframes thinking-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes listening-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(255, 167, 38, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(255, 167, 38, 0.5); }
+}
+
 .chat-messages {
   flex: 1;
   overflow-y: auto;

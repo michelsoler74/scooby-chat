@@ -113,20 +113,32 @@ function updateStatus(type, text) {
   dot.className = "status-dot " + type;
 }
 
-function animateScooby(isTalking) {
+function animateScooby(action) {
   const avatar = document.getElementById("scoobyAvatar");
   const thoughtBubble = document.getElementById("thoughtBubble");
   const leftEye = document.getElementById("leftEyeOuter");
   const rightEye = document.getElementById("rightEyeOuter");
 
-  if (isTalking) {
-    avatar?.classList.add("talking");
+  if (!avatar) return;
+
+  // Limpiar clases de animación y estados
+  avatar.classList.remove("is-speaking", "is-thinking", "is-listening", "talking");
+
+  if (action === "speaking") {
+    avatar.classList.add("is-speaking", "talking");
     thoughtBubble?.classList.add("show");
     updateStatus("thinking", "Hablando...");
     leftEye?.setAttribute("filter", "url(#glow)");
     rightEye?.setAttribute("filter", "url(#glow)");
+  } else if (action === "thinking") {
+    avatar.classList.add("is-thinking");
+    thoughtBubble?.classList.add("show");
+    updateStatus("thinking", "Pensando...");
+  } else if (action === "listening") {
+    avatar.classList.add("is-listening");
+    updateStatus("recording", "Escuchando...");
   } else {
-    avatar?.classList.remove("talking");
+    // Reset / Idle
     thoughtBubble?.classList.remove("show");
     updateStatus("ready", "Listo");
     leftEye?.removeAttribute("filter");
@@ -273,8 +285,7 @@ async function sendMessage(message = null) {
   if (input) input.value = "";
   
   showTypingIndicator();
-  updateStatus("thinking", "Pensando...");
-  animateScooby(true);
+  animateScooby("thinking");
   state.isBotResponding = true;
 
   try {
@@ -298,7 +309,7 @@ async function sendMessage(message = null) {
     if (state.isCancelling) return;
 
     hideTypingIndicator();
-    animateScooby(false);
+    // No detenemos la animación aquí, esperamos a que empiece a hablar
 
     const responseText = data.output || data.respuesta;
     if (responseText) {
@@ -310,13 +321,14 @@ async function sendMessage(message = null) {
       speakText(responseText);
       if (data.suggestions) updateSuggestions(data.suggestions);
     } else {
+      animateScooby("idle");
       addMessage("scooby", "¡Ruh-roh! No pude entenderte. ¿Repites?");
       resetToRecordState();
     }
   } catch (error) {
     console.error("API Error:", error);
     hideTypingIndicator();
-    animateScooby(false);
+    animateScooby("idle");
     addMessage("scooby", "¡Ups! Problemas de conexión. ¿Revisas el webhook?");
     resetToRecordState();
   }
@@ -339,7 +351,7 @@ function initializeSpeechRecognition() {
   recognition.onstart = () => {
     state.isRecording = true;
     updateVoiceButton();
-    updateStatus("recording", "Escuchando...");
+    animateScooby("listening");
     addMessage("sistema", "🎤 Te escucho...");
   };
 
@@ -356,6 +368,7 @@ function initializeSpeechRecognition() {
   recognition.onend = () => {
     state.isRecording = false;
     updateVoiceButton();
+    if (!state.isBotResponding) animateScooby("idle");
     if (state.hasRecordedMessage && !state.isBotResponding && !state.isCancelling) {
       setTimeout(() => sendMessage(state.recordedMessage), 500);
     }
@@ -382,14 +395,14 @@ function speakText(text) {
 
   utterance.onstart = () => {
     if (!state.isCancelling) {
-      animateScooby(true);
+      animateScooby("speaking");
       startMouthAnimation();
     }
   };
 
   utterance.onend = () => {
     stopMouthAnimation();
-    animateScooby(false);
+    animateScooby("idle");
     resetToRecordState();
   };
 
@@ -433,7 +446,7 @@ function cancelAllInteractions() {
   synth.cancel();
   recognition?.stop();
   stopMouthAnimation();
-  animateScooby(false);
+  animateScooby("idle");
   
   state.isRecording = false;
   state.isBotResponding = false;
